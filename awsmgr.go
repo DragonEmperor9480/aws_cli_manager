@@ -30,7 +30,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("EC2 MANAGEMENT")
 			fmt.Println("────────────────────────────────────")
-			//controllers.ec2_manager()
+			controllers.EC2_mgr()
 		case "3":
 			fmt.Println()
 			fmt.Println("S3 MANAGEMENT")
