@@ -35,7 +35,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("S3 MANAGEMENT")
 			fmt.Println("────────────────────────────────────")
-			//controllers.s3_manager()
+			controllers.S3_mgr()
 		case "4":
 			fmt.Println("\nExiting AWS CLI Manager...")
 			return
