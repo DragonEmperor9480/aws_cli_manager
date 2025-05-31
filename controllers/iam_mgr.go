@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	user "github.com/DragonEmperor9480/aws_cli_manager/controllers/iam/user"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam"
 )
@@ -17,7 +18,7 @@ func IAM_mgr() {
 		iamview.ShowIAMMenu()
 
 		fmt.Print("Choose an option: ")
-		input, _ := reader.ReadString('\n')  // FIXED HERE
+		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
 		switch input {
@@ -25,7 +26,7 @@ func IAM_mgr() {
 			// Call: CreateIAMUser()
 			utils.Bk()
 		case "2":
-			// Call: ListIAMUsers()
+			user.ListUsers_mgr()
 			utils.Bk()
 		case "3":
 			// Call: AddUserToGroup()
