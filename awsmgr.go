@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/controllers"
 	"github.com/DragonEmperor9480/aws_cli_manager/views"
 )
 
@@ -24,7 +25,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("IAM MANAGEMENT")
 			fmt.Println("────────────────────────────────────")
-			//controllers.iam_manager()
+			controllers.IAM_mgr()
 		case "2":
 			fmt.Println()
 			fmt.Println("EC2 MANAGEMENT")
