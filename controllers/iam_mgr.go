@@ -30,7 +30,7 @@ func IAM_mgr() {
 			user.ListUsers_mgr()
 			utils.Bk()
 		case "3":
-			// Call: AddUserToGroup()
+			group.AddUserToGroupController()
 			utils.Bk()
 		case "4":
 			user.DeleteIAMUserController()
