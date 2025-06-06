@@ -42,7 +42,7 @@ func IAM_mgr() {
 			// Call: UpdatePassword()
 			utils.Bk()
 		case "9":
-			// Call: CreateIAMGroup()
+			group.CreateIAMGroupController()
 			utils.Bk()
 		case "10":
 			group.ListGroupsController()
