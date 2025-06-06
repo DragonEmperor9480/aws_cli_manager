@@ -23,7 +23,7 @@ func IAM_mgr() {
 
 		switch input {
 		case "1":
-			// Call: CreateIAMUser()
+			user.CreateIAMUserController()
 			utils.Bk()
 		case "2":
 			user.ListUsers_mgr()
