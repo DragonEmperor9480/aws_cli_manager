@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	group "github.com/DragonEmperor9480/aws_cli_manager/controllers/iam/group"
 	user "github.com/DragonEmperor9480/aws_cli_manager/controllers/iam/user"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam"
@@ -44,7 +45,7 @@ func IAM_mgr() {
 			// Call: CreateIAMGroup()
 			utils.Bk()
 		case "10":
-			// Call: ListIAMGroups()
+			group.ListGroupsController()
 			utils.Bk()
 		case "11":
 			// Call: ListUsersInGroup()
