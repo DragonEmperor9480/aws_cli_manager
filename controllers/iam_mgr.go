@@ -32,7 +32,7 @@ func IAM_mgr() {
 			// Call: AddUserToGroup()
 			utils.Bk()
 		case "4":
-			// Call: DeleteIAMUser()
+			user.DeleteIAMUserController()
 			utils.Bk()
 		case "5":
 			// Call: SetInitialPassword()
