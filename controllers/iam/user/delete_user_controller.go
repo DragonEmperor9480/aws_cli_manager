@@ -12,7 +12,7 @@ import (
 
 func DeleteIAMUserController() {
 	reader := bufio.NewReader(os.Stdin)
-	ListUsers_mgr()
+	ListUsersController()
 
 	fmt.Print("Enter IAM username you want to delete: ")
 	input, _ := reader.ReadString('\n')

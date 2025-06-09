@@ -27,7 +27,7 @@ func IAM_mgr() {
 			user.CreateIAMUserController()
 			utils.Bk()
 		case "2":
-			user.ListUsers_mgr()
+			user.ListUsersController()
 			utils.Bk()
 		case "3":
 			group.AddUserToGroupController()

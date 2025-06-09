@@ -8,7 +8,7 @@ import (
 	userview "github.com/DragonEmperor9480/aws_cli_manager/views/iam/user"
 )
 
-func ListUsers_mgr() {
+func ListUsersController() {
 	utils.ShowProcessingAnimation("Loading IAM Users")
 	data, err := iam.FetchIAMUsers()
 	utils.StopAnimation()
