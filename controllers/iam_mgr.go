@@ -36,7 +36,7 @@ func IAM_mgr() {
 			user.DeleteIAMUserController()
 			utils.Bk()
 		case "5":
-			// Call: SetInitialPassword()
+			user.SetInitialUserPassword()
 			utils.Bk()
 		case "6":
 			// Call: UpdatePassword()
