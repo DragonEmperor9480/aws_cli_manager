@@ -39,7 +39,7 @@ func IAM_mgr() {
 			user.SetInitialUserPassword()
 			utils.Bk()
 		case "6":
-			// Call: UpdatePassword()
+			user.UpdateUserPasswordController()
 			utils.Bk()
 		case "9":
 			group.CreateIAMGroupController()
