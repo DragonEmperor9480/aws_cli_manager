@@ -48,7 +48,7 @@ func IAM_mgr() {
 			group.ListGroupsController()
 			utils.Bk()
 		case "11":
-			// Call: ListUsersInGroup()
+			group.ListUsersInGroupController()
 			utils.Bk()
 		case "12":
 			// Call: ListUserGroups()
