@@ -57,7 +57,7 @@ func IAM_mgr() {
 			// Call: DeleteIAMGroup()
 			utils.Bk()
 		case "14":
-			// Call: RemoveUserFromGroup()
+			group.RemoveUserFromGroupController()
 			utils.Bk()
 		case "15":
 			fmt.Println("Returning to Main Menu...")
