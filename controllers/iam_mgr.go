@@ -54,7 +54,7 @@ func IAM_mgr() {
 			group.ListUserGroupsController()
 			utils.Bk()
 		case "13":
-			// Call: DeleteIAMGroup()
+			group.DeleteIamGroupController()
 			utils.Bk()
 		case "14":
 			group.RemoveUserFromGroupController()
