@@ -61,6 +61,7 @@ func IAM_mgr() {
 			utils.Bk()
 		case "15":
 			fmt.Println("Returning to Main Menu...")
+			utils.ClearScreen()
 			return
 		default:
 			fmt.Println(utils.Red + "Invalid input. Please try again." + utils.Reset)

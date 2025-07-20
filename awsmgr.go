@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/controllers"
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	"github.com/DragonEmperor9480/aws_cli_manager/views"
 )
 
@@ -14,6 +15,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
+		utils.ClearScreen()
 		views.ShowMenu()
 
 		fmt.Print("Select option [1-4]: ")
