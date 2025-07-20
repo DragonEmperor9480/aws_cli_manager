@@ -11,6 +11,15 @@ import (
 )
 
 func DeleteIAMUser(username string) {
+	// Check if user exists
+	checkCmd := exec.Command("aws", "iam", "get-user", "--user-name", username)
+	checkBytes, _ := checkCmd.CombinedOutput()
+	if strings.Contains(string(checkBytes), "NoSuchEntity") {
+		utils.StopAnimation()
+		fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' does not exist!" + utils.Reset)
+		return
+	}
+
 	utils.ShowProcessingAnimation("Checking IAM User Groups and Policies")
 
 	groupCmd := exec.Command("aws", "iam", "list-groups-for-user", "--user-name", username, "--output", "text", "--query", "Groups[*].GroupName")
