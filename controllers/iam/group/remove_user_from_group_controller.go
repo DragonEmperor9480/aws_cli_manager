@@ -26,7 +26,11 @@ func RemoveUserFromGroupController() {
 
 	userGroups := groupModel.ListUserGroupsModel(username)
 	utils.ShowProcessingAnimation("Fetching IAM Groups for The User")
-	views.ShowGroupsOfUser(username, userGroups)
+	x := views.ShowGroupsOfUser(username, userGroups)
+	if !x {
+		utils.StopAnimation()
+		return
+	}
 	utils.StopAnimation()
 
 	fmt.Print("Enter Groupname: ")

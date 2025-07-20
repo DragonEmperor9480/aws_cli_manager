@@ -7,13 +7,13 @@ import (
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
-func ShowGroupsOfUser(username string, groups []string) {
+func ShowGroupsOfUser(username string, groups []string) bool{
 	fmt.Println()
 	fmt.Println(utils.Bold + utils.Cyan + "Groups assigned to user: " + username + utils.Reset)
 
 	if len(groups) == 0 {
 		fmt.Println(utils.Yellow + "This user is not part of any groups." + utils.Reset)
-		return
+		return false
 	}
 
 	fmt.Println(utils.Bold + "┌────────────────────────────┐" + utils.Reset)
@@ -25,4 +25,5 @@ func ShowGroupsOfUser(username string, groups []string) {
 	}
 
 	fmt.Println(utils.Bold + "└────────────────────────────┘" + utils.Reset)
+	return true
 }
