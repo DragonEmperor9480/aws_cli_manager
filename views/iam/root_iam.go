@@ -19,8 +19,10 @@ func ShowIAMMenu() {
 	fmt.Println("  " + utils.Bold + "4)" + utils.Reset + " Delete IAM User")
 	fmt.Println("  " + utils.Bold + "5)" + utils.Reset + " Set Initial password for IAM user")
 	fmt.Println("  " + utils.Bold + "6)" + utils.Reset + " Change password for IAM user")
-	fmt.Println("  " + utils.Bold + "7)" + utils.Reset + " Create access key (WIP)")
-	fmt.Println("  " + utils.Bold + "8)" + utils.Reset + " Delete access key (WIP)")
+	fmt.Println("  " + utils.Bold + "7)" + utils.Reset + " Create access key (BETA)")
+	fmt.Println("  " + utils.Bold + "8)" + utils.Reset + " list access key (WIP)")
+	fmt.Println("  " + utils.Bold + "9)" + utils.Reset + " delete access key (TO DO)")
+
 	fmt.Println()
 	fmt.Println(utils.Bold + utils.Yellow + "Group Management:" + utils.Reset)
 	fmt.Println("  " + utils.Bold + "9)" + utils.Reset + "  Create IAM Group")
