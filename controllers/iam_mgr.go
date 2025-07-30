@@ -44,6 +44,8 @@ func IAM_mgr() {
 		case "7":
 			user.CreateAccessKeyForUserController()
 			utils.Bk()
+		case "8":
+			user.ListAccessKeysForUserController()
 		case "9":
 			group.CreateIAMGroupController()
 			utils.Bk()

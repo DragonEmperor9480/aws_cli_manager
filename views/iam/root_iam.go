@@ -20,7 +20,7 @@ func ShowIAMMenu() {
 	fmt.Println("  " + utils.Bold + "5)" + utils.Reset + " Set Initial password for IAM user")
 	fmt.Println("  " + utils.Bold + "6)" + utils.Reset + " Change password for IAM user")
 	fmt.Println("  " + utils.Bold + "7)" + utils.Reset + " Create access key (BETA)")
-	fmt.Println("  " + utils.Bold + "8)" + utils.Reset + " list access key (WIP)")
+	fmt.Println("  " + utils.Bold + "8)" + utils.Reset + " list access key(s) (WIP)")
 	fmt.Println("  " + utils.Bold + "9)" + utils.Reset + " delete access key (TO DO)")
 
 	fmt.Println()
