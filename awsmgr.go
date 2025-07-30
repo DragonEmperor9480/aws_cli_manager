@@ -30,12 +30,12 @@ func main() {
 			controllers.IAM_mgr()
 		case "2":
 			fmt.Println()
-			fmt.Println("EC2 MANAGEMENT")
+			fmt.Println("EC2 MANAGEMENT(WIP)")
 			fmt.Println("────────────────────────────────────")
 			controllers.EC2_mgr()
 		case "3":
 			fmt.Println()
-			fmt.Println("S3 MANAGEMENT")
+			fmt.Println("S3 MANAGEMENT(WIP)")
 			fmt.Println("────────────────────────────────────")
 			controllers.S3_mgr()
 		case "4":
