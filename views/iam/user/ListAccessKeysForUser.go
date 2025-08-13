@@ -48,4 +48,5 @@ func ListAccessKeysForUserView(output string) {
 	}
 
 	fmt.Println(utils.Bold + "└──────────────────────────────┴────────────┴────────────────────────────┘" + utils.Reset)
+	utils.Bk()
 }

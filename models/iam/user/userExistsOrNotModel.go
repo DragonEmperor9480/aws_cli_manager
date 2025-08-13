@@ -11,11 +11,11 @@ func UserExistsOrNotModel(username string) bool {
 	utils.ShowProcessingAnimation("Checking if user exists: " + username)
 	checkCmd := exec.Command("aws", "iam", "get-user", "--user-name", username)
 	output, _ := checkCmd.CombinedOutput()
+	utils.StopAnimation()
 	if strings.Contains(string(output), "NoSuchEntity") {
 		utils.StopAnimation()
 		return false
 	}
-	utils.StopAnimation()
 	return true
 
 }
