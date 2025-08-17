@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	s3controller "github.com/DragonEmperor9480/aws_cli_manager/controllers/s3"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	s3view "github.com/DragonEmperor9480/aws_cli_manager/views/s3"
 )
@@ -22,7 +23,7 @@ func S3_mgr() {
 
 		switch input {
 		case "1":
-			// Call CreateS3Bucket()
+			s3controller.CreateS3Bucket()
 			utils.Bk()
 		case "2":
 			// Call ListS3Buckets()
