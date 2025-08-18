@@ -28,7 +28,7 @@ func CreateAccessKeyForUserModel(username string) {
 	}
 
 	accessKey, secretAccessKey := iamview.ShowAccessKeyView(string(output))
-	fmt.Println("Would you like to save the access key and secret access key? (y/n): ")
+	fmt.Print("Would you like to save the access key and secret access key? (y/n): ")
 	reader := bufio.NewReader(os.Stdin)
 	saveChoice, _ := reader.ReadString('\n')
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
@@ -65,11 +65,11 @@ func CreateAccessKeyForUserModel(username string) {
 	}
 
 	fmt.Println("Would you like to Share these credentials to user via mail? (y/n): ")
-	saveChoice, _ = reader.ReadString(' ')
+	saveChoice, _ = reader.ReadString('\n')
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
 	if saveChoice == "y" {
 		fmt.Println("Enter User mail:")
-		reciverMail, _ := reader.ReadString(' ')
+		reciverMail, _ := reader.ReadString('\n')
 		reciverMail = strings.TrimSpace(reciverMail)
 		service.MailService(username, reciverMail, accessKey, secretAccessKey)
 	}

@@ -26,7 +26,7 @@ func S3_mgr() {
 			s3controller.CreateS3Bucket()
 			utils.Bk()
 		case "2":
-			// Call ListS3Buckets()
+			s3controller.ListS3Buckets()
 			utils.Bk()
 		case "3":
 			// Call DeleteS3Bucket()
