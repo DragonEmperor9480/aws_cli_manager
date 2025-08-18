@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam/user"
 )
 
@@ -62,4 +63,15 @@ func CreateAccessKeyForUserModel(username string) {
 		fmt.Println("Access key and secret access key saved successfully at:", filePath)
 
 	}
+
+	fmt.Println("Would you like to Share these credentials to user via mail? (y/n): ")
+	saveChoice, _ = reader.ReadString(' ')
+	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
+	if saveChoice == "y" {
+		fmt.Println("Enter User mail:")
+		reciverMail, _ := reader.ReadString(' ')
+		reciverMail = strings.TrimSpace(reciverMail)
+		service.MailService(username, reciverMail, accessKey, secretAccessKey)
+	}
+
 }
