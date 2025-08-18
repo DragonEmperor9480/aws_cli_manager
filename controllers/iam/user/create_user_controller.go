@@ -14,7 +14,7 @@ func CreateIAMUserController() {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Enter Username for new IAM User: ")
-	input, _ := reader.ReadString('\n')
+	input, _ := reader.ReadString(' ')
 	username := strings.TrimSpace(input)
 
 	if username == "" {
@@ -23,4 +23,19 @@ func CreateIAMUserController() {
 	}
 
 	create_user_model.CreateIAMUser(username)
+
+	fmt.Println("Would you like to create set Initial password for the user? (y/n): ")
+	saveChoice, _ := reader.ReadString('\n')
+	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
+	if saveChoice == "y" {
+		SetInitialUserPasswordDirect(username)
+
+	}
+	fmt.Println("Would you like to create access key for the user? (y/n): ")
+	saveChoice, _ = reader.ReadString('\n')
+	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
+	if saveChoice == "y" {
+		create_user_model.CreateAccessKeyForUserModel(username)
+	}
+
 }

@@ -48,7 +48,7 @@ func DeleteIAMUser(username string) {
 		}
 		fmt.Print(utils.Red + "Do you want to remove the user from all groups and detach all policies, then delete the user? (y/N): " + utils.Reset)
 		reader := bufio.NewReader(os.Stdin)
-		answer, _ := reader.ReadString('\n')
+		answer, _ := reader.ReadString(' ')
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		utils.ShowProcessingAnimation("Deleting IAM User")
 

@@ -35,3 +35,20 @@ func SetInitialUserPassword() {
 
 	user_model.SetInitialUserPasswordModel(username, password)
 }
+
+func SetInitialUserPasswordDirect(username string) {
+	ListUsersController()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter Password for the user: ")
+	input, _ := reader.ReadString('\n')
+	password := strings.TrimSpace(input)
+
+	if password == "" {
+		fmt.Println(utils.Bold + utils.Red + "Failed to create password since it was left empty" + utils.Reset)
+		return
+	}
+
+	user_model.SetInitialUserPasswordModel(username, password)
+}
