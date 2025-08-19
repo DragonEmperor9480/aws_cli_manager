@@ -29,7 +29,7 @@ func S3_mgr() {
 			s3controller.ListS3Buckets()
 			utils.Bk()
 		case "3":
-			// Call DeleteS3Bucket()
+			s3controller.DeleteS3Bucket()
 			utils.Bk()
 		case "4":
 			// Call ListObjectsInBucket()
