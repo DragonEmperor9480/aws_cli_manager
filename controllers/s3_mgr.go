@@ -32,10 +32,10 @@ func S3_mgr() {
 			s3controller.DeleteS3Bucket()
 			utils.Bk()
 		case "4":
-			// Call ListObjectsInBucket()
+			s3controller.S3ListBucketObjectsController()
 			utils.Bk()
 		case "5":
-			// Call ToggleMFABucketDelete()
+			s3controller.S3BucketMFADeleteController()
 			utils.Bk()
 		case "6":
 			// Back to main menu
