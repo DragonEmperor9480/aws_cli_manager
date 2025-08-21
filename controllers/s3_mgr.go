@@ -35,9 +35,11 @@ func S3_mgr() {
 			s3controller.S3ListBucketObjectsController()
 			utils.Bk()
 		case "5":
+			s3controller.S3BucketVersioningController()
+		case "6":
 			s3controller.S3BucketMFADeleteController()
 			utils.Bk()
-		case "6":
+		case "7":
 			// Back to main menu
 			fmt.Println("Returning to Main Menu...")
 			return

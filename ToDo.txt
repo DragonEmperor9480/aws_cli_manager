@@ -1,0 +1,8 @@
+#BUGS
+Animation Glitches in IAM
+Animation glitches in s3 versioning
+
+#TODO
+Advanced implementation of s3 versioning where hangling errors when MFA is enabled or disabbled
+Import Mail code from configs or .env file
+optimize the namechecker in codebase|
