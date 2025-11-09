@@ -38,27 +38,43 @@ It provides a modular architecture to interact with AWS services using a user-fr
 - Go installed (version 1.24.3 or newer recommended)
 - AWS CLI configured on your machine (for actual AWS command executions)
 
-### Clone the repository
+### Installation Options
+
+#### Option 1: Compile and Install to System Path
+
+This method installs `awsmgr` globally so you can run it from anywhere:
 
 ```bash
-git clone https://github.com/DragonEmperor9480/aws_cli_manager.git
+# Clone the repository
+git clone https://github.com/DragonEmperor9480/aws_cli_manager
 cd aws_cli_manager
+
+# Build the application
+go build -o awsmgr
+
+# Move to system path (requires sudo)
+sudo mv awsmgr /usr/local/bin/
+
+# Verify installation
+awsmgr --version
 ```
 
-### Build the project
+After installation, you can run `awsmgr` from any directory.
 
-Build the binary executable using the following command:
+#### Option 2: Quick Run (Local Build)
 
-```bash
-go build -o out/awsmgr
-```
-
-This will compile the project and place the executable in the `out/` directory as `awsmgr`.
-
-### Run the executable
+This method builds and runs the application locally without system installation:
 
 ```bash
-./out/awsmgr
+# Clone the repository
+git clone https://github.com/DragonEmperor9480/aws_cli_manager
+cd aws_cli_manager
+
+# Build the application
+go build -o awsmgr
+
+# Run the application
+./awsmgr
 ```
 
 You should see the interactive menu interface, allowing you to navigate AWS services.
