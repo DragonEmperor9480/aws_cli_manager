@@ -24,18 +24,22 @@ func CreateIAMUserController() {
 
 	create_user_model.CreateIAMUser(username)
 
-	fmt.Print("Would you like to create set Initial password for the user? (y/n): ")
+	fmt.Print("Would you like to create set Initial password for the user? (y/n) (Default = n): ")
 	saveChoice, _ := reader.ReadString('\n')
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
-	if saveChoice == "y" {
+	if (saveChoice == "y"||saveChoice=="Y") {
 		SetInitialUserPasswordDirect(username)
 
+	}else{
+		fmt.Println(utils.Bold + utils.Yellow + "Skipping Initial Password Setup" + utils.Reset)
 	}
-	fmt.Print("Would you like to create access key for the user? (y/n): ")
+	fmt.Print("Would you like to create access key for the user? (y/n) (Default = n): ")
 	saveChoice, _ = reader.ReadString('\n')
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
 	if saveChoice == "y" {
 		create_user_model.CreateAccessKeyForUserModel(username)
+	}else{
+		fmt.Println(utils.Bold + utils.Yellow + "Skipping Access Key Creation" + utils.Reset)
 	}
 
 }
