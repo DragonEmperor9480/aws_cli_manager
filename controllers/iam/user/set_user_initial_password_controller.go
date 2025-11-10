@@ -24,6 +24,10 @@ func SetInitialUserPassword() {
 		return
 	}
 
+	if !user_model.UserExistsOrNotModel(username) {
+		return
+	}
+
 	fmt.Print("Enter Password for the user: ")
 	input, _ = reader.ReadString('\n')
 	password := strings.TrimSpace(input)
