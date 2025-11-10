@@ -11,17 +11,19 @@ import (
 )
 
 func DeleteIAMUser(username string) {
+	utils.ShowProcessingAnimation("Processing")
 	// Check if user exists
 	checkCmd := exec.Command("aws", "iam", "get-user", "--user-name", username)
 	checkBytes, _ := checkCmd.CombinedOutput()
 	reader := bufio.NewReader(os.Stdin)
-
+	
+	utils.StopAnimation()
+	
 	if strings.Contains(string(checkBytes), "NoSuchEntity") {
-		utils.StopAnimation()
 		fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' does not exist!" + utils.Reset)
 		return
 	}
-
+	
 	utils.ShowProcessingAnimation("Checking IAM User dependencies...")
 
 	// Get groups
@@ -44,8 +46,9 @@ func DeleteIAMUser(username string) {
 	keyBytes, _ := keyCmd.CombinedOutput()
 	accessKeys := strings.Fields(string(keyBytes))
 
+	utils.StopAnimation()
+	
 	if len(groups) > 0 || len(policies) > 0 || len(inlinePolicies) > 0 || len(accessKeys) > 0 {
-		utils.StopAnimation()
 		fmt.Println(utils.Yellow + "User '" + username + "' has the following dependencies:" + utils.Reset)
 
 		if len(groups) > 0 {
