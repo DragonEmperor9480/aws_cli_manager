@@ -16,16 +16,20 @@ func SetInitialUserPasswordModel(username, password string) {
 	choice, _ := reader.ReadString('\n')
 	choice = strings.ToLower(strings.TrimSpace(choice))
 
+	utils.ShowProcessingAnimation("Processing...")
+
 	var cmd *exec.Cmd
 	if choice == "y" {
+		fmt.Println(utils.Bold + utils.Yellow + "Initial password reset is enabled." + utils.Reset)
 		cmd = exec.Command("aws", "iam", "create-login-profile", "--user-name", username, "--password", password, "--password-reset-required")
 	} else {
+		fmt.Println(utils.Bold + utils.Yellow + "Initial password reset is disabled." + utils.Reset)
 		cmd = exec.Command("aws", "iam", "create-login-profile", "--user-name", username, "--password", password)
 	}
 
 	outputBytes, _ := cmd.CombinedOutput()
 	output := string(outputBytes)
-
+	utils.StopAnimation()
 	if strings.Contains(output, "UserName") && strings.Contains(output, "CreateDate") {
 		fmt.Println(utils.Green + utils.Bold + " User password created successfully!" + utils.Reset)
 	} else if strings.Contains(output, "NoSuchEntity") {
