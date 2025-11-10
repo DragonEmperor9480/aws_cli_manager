@@ -22,5 +22,6 @@ func ShowProcessingAnimation(message string) {
 
 func StopAnimation() {
 	animationRunning = false
-	fmt.Print("\r                                \r") // Clear the line
+	time.Sleep(150 * time.Millisecond) // Wait for goroutine to finish
+	fmt.Print("\r                                                    \r") // Clear the line
 }
