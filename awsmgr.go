@@ -14,7 +14,10 @@ import (
 func main() {
 	// Check for version flag
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		fmt.Println("AWSMGR (Pre Release Edition)")
+		utils.GetVersion()
+		return
+	} else {
+		fmt.Println(utils.Bold + "Awsmgr says: Unknown flag" + utils.Reset)
 		return
 	}
 
