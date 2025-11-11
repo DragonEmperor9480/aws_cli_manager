@@ -79,6 +79,50 @@ go build -o awsmgr
 
 You should see the interactive menu interface, allowing you to navigate AWS services.
 
+#### Option 3: Windows Installation
+
+For Windows users, follow these steps:
+
+**Quick Run (Local Build):**
+
+```powershell
+# Clone the repository
+git clone https://github.com/DragonEmperor9480/aws_cli_manager
+cd aws_cli_manager
+
+# Build the application
+go build -o awsmgr.exe
+
+# Run the application
+.\awsmgr.exe
+```
+
+**To install globally (add to PATH):**
+
+```powershell
+# Clone the repository
+git clone https://github.com/DragonEmperor9480/aws_cli_manager
+cd aws_cli_manager
+
+# Build the application
+go build -o awsmgr.exe
+
+# Create awsmgr directory in Program Files
+mkdir "C:\Program Files\awsmgr"
+
+# Move the executable
+move awsmgr.exe "C:\Program Files\awsmgr\"
+
+# Add to User PATH (run as administrator for System PATH)
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$userPath;C:\Program Files\awsmgr", "User")
+
+# Restart your terminal and verify
+awsmgr --version
+```
+
+After adding to PATH, you can run `awsmgr` from any directory.
+
 ---
 
 ## Usage
