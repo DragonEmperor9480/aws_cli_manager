@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/service"
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam/user"
 )
 
@@ -15,13 +16,15 @@ func CreateAccessKeyForUserModel(username string) {
 
 	cond := UserExistsOrNotModel(username)
 	if !cond {
-		fmt.Println("User does not exist.")
+		fmt.Println(utils.Red + utils.Bold + "User does not exist." + utils.Reset)
 		return
 	}
-
+	utils.ShowProcessingAnimation("Creating access key for user...")
 	// Create access key for user
 	createCmd := exec.Command("aws", "iam", "create-access-key", "--user-name", username)
 	output, err := createCmd.CombinedOutput()
+	utils.StopAnimation()
+
 	if err != nil {
 		fmt.Println("Error creating access key:", err)
 		return
@@ -60,8 +63,10 @@ func CreateAccessKeyForUserModel(username string) {
 			fmt.Println("Error writing to credentials file:", err)
 			return
 		}
-		fmt.Println("Access key and secret access key saved successfully at:", filePath)
+		fmt.Println(utils.Green+utils.Bold+"Access key and secret access key saved successfully at:", filePath+utils.Reset)
 
+	} else {
+		fmt.Println(utils.Yellow + utils.Bold + "skipped saving credentials." + utils.Reset)
 	}
 
 	fmt.Println("Would you like to Share these credentials to user via mail? (y/n): ")

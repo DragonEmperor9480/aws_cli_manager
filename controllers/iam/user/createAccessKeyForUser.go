@@ -12,8 +12,8 @@ import (
 func CreateAccessKeyForUserController() {
 	reader := bufio.NewReader(os.Stdin)
 	ListUsersController()
-	fmt.Println("Enter IAM username to create access key for:")
-	input, _ := reader.ReadString(' ')
+	fmt.Print("Enter IAM username to create access key for: ")
+	input, _ := reader.ReadString('\n')
 	username := strings.TrimSpace(input)
 	model.CreateAccessKeyForUserModel(username)
 
