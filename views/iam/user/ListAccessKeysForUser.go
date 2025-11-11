@@ -20,15 +20,16 @@ type ListAccessKeysOutput struct {
 func ListAccessKeysForUserView(output string) {
 	var result ListAccessKeysOutput
 
+	if len(result.AccessKeyMetadata) == 0 {
+		fmt.Println(utils.Yellow + utils.Bold + "No access keys found for this user." + utils.Reset)
+		utils.Bk()
+		return
+
+	}
 	err := json.Unmarshal([]byte(output), &result)
 	if err != nil {
 		fmt.Println(utils.Bold + utils.Red + "Error parsing access keys list output:" + utils.Reset)
 		fmt.Println(err)
-		return
-	}
-
-	if len(result.AccessKeyMetadata) == 0 {
-		fmt.Println(utils.Bold + utils.Yellow + "No access keys found for this user." + utils.Reset)
 		return
 	}
 
