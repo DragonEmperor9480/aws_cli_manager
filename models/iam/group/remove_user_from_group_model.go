@@ -9,9 +9,11 @@ import (
 )
 
 func RemoveUserFromGroupModel(username, groupname string) {
+	utils.ShowProcessingAnimation("Removing user '" + username + "' from group '" + groupname + "'")
 	cmd := exec.Command("aws", "iam", "remove-user-from-group", "--group-name", groupname, "--user-name", username)
 	outputBytes, _ := cmd.CombinedOutput()
 	output := string(outputBytes)
+	utils.StopAnimation()
 
 	if strings.TrimSpace(output) == "" {
 		fmt.Println(utils.Bold + utils.Green + "User '" + username + "' removed to group '" + groupname + "' successfully!" + utils.Reset)
