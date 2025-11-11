@@ -21,11 +21,10 @@ func DeleteGroupModel(groupname string) {
 	}
 	utils.StopAnimation()
 
-	fmt.Println(utils.Bold + "\nChecking dependencies for group '" + groupname + "'..." + utils.Reset)
-	utils.ShowProcessingAnimation(" ")
+	utils.ShowProcessingAnimation("Checking attached policies and users...")
 
 	// Fetch attached policies
-	cmd = exec.Command("aws", "iam", "list-attached-group-policies", "--group-name", groupname, "--query", "AttachedPolicies[*].PolicyName", "--output", "text")
+	cmd = exec.Command("aws", "iam", "list-attached-group-policies", "--group-name", groupname, "--query", "AttachedPolicies[*].PolicyArn", "--output", "text")
 	policyBytes, _ := cmd.Output()
 	policies := strings.Fields(string(policyBytes))
 
@@ -33,6 +32,8 @@ func DeleteGroupModel(groupname string) {
 	cmd = exec.Command("aws", "iam", "get-group", "--group-name", groupname, "--query", "Users[*].UserName", "--output", "text")
 	userBytes, _ := cmd.Output()
 	users := strings.Fields(string(userBytes))
+
+	utils.StopAnimation()
 
 	if len(policies) > 0 || len(users) > 0 {
 		fmt.Println(utils.Yellow + "Group '" + groupname + "' has the following dependencies:" + utils.Reset)
@@ -56,9 +57,13 @@ func DeleteGroupModel(groupname string) {
 	// Detach policies
 	if len(policies) > 0 {
 		utils.ShowProcessingAnimation("Detaching policies...")
-		for _, policy := range policies {
-			policyArn := "arn:aws:iam::aws:policy/" + policy
-			exec.Command("aws", "iam", "detach-group-policy", "--group-name", groupname, "--policy-arn", policyArn).Run()
+		for _, policyArn := range policies {
+			detachCmd := exec.Command("aws", "iam", "detach-group-policy", "--group-name", groupname, "--policy-arn", policyArn)
+			if err := detachCmd.Run(); err != nil {
+				fmt.Println(utils.Red + utils.Bold + "Failed to detach policy: " + policyArn + " (" + err.Error() + ")" + utils.Reset)
+			} else {
+				fmt.Println(utils.Green + "Detached policy: " + policyArn + utils.Reset)
+			}
 		}
 		utils.StopAnimation()
 		fmt.Println(utils.Yellow + "Detached all managed policies from '" + groupname + "'." + utils.Reset)
