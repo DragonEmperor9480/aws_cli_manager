@@ -16,9 +16,6 @@ func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
 		utils.GetVersion()
 		return
-	} else {
-		fmt.Println(utils.Bold + "Awsmgr says: Unknown flag" + utils.Reset)
-		return
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -27,7 +24,7 @@ func main() {
 		utils.ClearScreen()
 		views.ShowMenu()
 
-		fmt.Print("Select option [1-4]: ")
+		fmt.Print("Select option [1-5]: ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
@@ -48,6 +45,11 @@ func main() {
 			fmt.Println("────────────────────────────────────")
 			controllers.S3_mgr()
 		case "4":
+			fmt.Println()
+			fmt.Println("CLOUDWATCH MANAGEMENT")
+			fmt.Println("────────────────────────────────────")
+			controllers.CloudWatch_mgr()
+		case "5":
 			fmt.Println("\nExiting AWS CLI Manager...")
 			return
 		default:
