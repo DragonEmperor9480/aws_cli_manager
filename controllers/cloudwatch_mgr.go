@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	cloudwatch "github.com/DragonEmperor9480/aws_cli_manager/controllers/cloudwatch"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	cloudwatchview "github.com/DragonEmperor9480/aws_cli_manager/views/cloudwatch"
 )
@@ -22,7 +23,7 @@ func CloudWatch_mgr() {
 
 		switch input {
 		case "1":
-			 // still need to add livetail functionality uff
+			cloudwatch.LiveTailLambdaLogs()
 			utils.Bk()
 		case "2":
 			// Back to main menu
