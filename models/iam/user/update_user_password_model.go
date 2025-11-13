@@ -2,41 +2,45 @@ package user
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func UpdateUserPasswordModel(username, password string) {
 	reader := bufio.NewReader(os.Stdin)
-	cmd := exec.Command("aws", "iam", "update-login-profile", "--user-name", username, "--password", password)
 
-	outputBytes, _ := cmd.CombinedOutput()
-	output := string(outputBytes)
+	ctx := context.TODO()
+	_, err := utils.IAMClient.UpdateLoginProfile(ctx, &iam.UpdateLoginProfileInput{
+		UserName: aws.String(username),
+		Password: aws.String(password),
+	})
 
-	if strings.Contains(output, "") {
-		fmt.Println(utils.Green + utils.Bold + " User password created successfully!" + utils.Reset)
-	} else if strings.Contains(output, "NoSuchEntity") {
-		fmt.Println(utils.Red + utils.Bold + "Error: The user '" + username + "' does not exist!" + utils.Reset)
-		return
-	} else if strings.Contains(output, "PasswordPolicyViolation") {
-		fmt.Println(utils.Red + utils.Bold + "Error: Password does not meet AWS policy requirements!" + utils.Reset)
-		fmt.Println(utils.Yellow + "Password should include at least:\n" +
-			"- One uppercase letter\n" +
-			"- One lowercase letter\n" +
-			"- One symbol (e.g., !@#$%^&*)\n" +
-			"- One number (if required by your policy)\n" +
-			"- Minimum length as per your account policy" + utils.Reset)
-		return
-	} else {
-		fmt.Println(utils.Red + utils.Bold + "Error occurred while creating password:" + utils.Reset)
-		fmt.Println(output)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchEntity") {
+			fmt.Println(utils.Red + utils.Bold + "Error: The user '" + username + "' does not exist!" + utils.Reset)
+		} else if strings.Contains(err.Error(), "PasswordPolicyViolation") {
+			fmt.Println(utils.Red + utils.Bold + "Error: Password does not meet AWS policy requirements!" + utils.Reset)
+			fmt.Println(utils.Yellow + "Password should include at least:\n" +
+				"- One uppercase letter\n" +
+				"- One lowercase letter\n" +
+				"- One symbol (e.g., !@#$%^&*)\n" +
+				"- One number (if required by your policy)\n" +
+				"- Minimum length as per your account policy" + utils.Reset)
+		} else {
+			fmt.Println(utils.Red + utils.Bold + "Error occurred while updating password:" + utils.Reset)
+			fmt.Println(err.Error())
+		}
 		return
 	}
+
+	fmt.Println(utils.Green + utils.Bold + " User password updated successfully!" + utils.Reset)
 
 	//Save credentials
 	fmt.Print(utils.Yellow + utils.Bold + "Would you like to save " + username + "'s credentials? (y/n): " + utils.Reset)

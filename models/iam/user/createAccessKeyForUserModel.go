@@ -2,35 +2,55 @@ package user
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam/user"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func CreateAccessKeyForUserModel(username string) {
-
 	cond := UserExistsOrNotModel(username)
 	if !cond {
 		fmt.Println(utils.Red + utils.Bold + "User does not exist." + utils.Reset)
 		return
 	}
+
 	utils.ShowProcessingAnimation("Creating access key for user...")
-	// Create access key for user
-	createCmd := exec.Command("aws", "iam", "create-access-key", "--user-name", username)
-	output, err := createCmd.CombinedOutput()
+
+	// Create access key using AWS SDK
+	ctx := context.TODO()
+	result, err := utils.IAMClient.CreateAccessKey(ctx, &iam.CreateAccessKeyInput{
+		UserName: aws.String(username),
+	})
+
 	utils.StopAnimation()
 
 	if err != nil {
-		fmt.Println("Error creating access key:", err)
+		fmt.Println("Error creating access key:", err.Error())
 		return
 	}
 
-	accessKey, secretAccessKey := iamview.ShowAccessKeyView(string(output))
+	// Convert result to JSON format (to match old view format)
+	accessKeyData := map[string]interface{}{
+		"AccessKey": map[string]interface{}{
+			"UserName":        aws.ToString(result.AccessKey.UserName),
+			"AccessKeyId":     aws.ToString(result.AccessKey.AccessKeyId),
+			"Status":          result.AccessKey.Status,
+			"SecretAccessKey": aws.ToString(result.AccessKey.SecretAccessKey),
+			"CreateDate":      result.AccessKey.CreateDate,
+		},
+	}
+	jsonOutput, _ := json.MarshalIndent(accessKeyData, "", "  ")
+
+	accessKey, secretAccessKey := iamview.ShowAccessKeyView(string(jsonOutput))
+
 	fmt.Print("Would you like to save the access key and secret access key? (y/n): ")
 	reader := bufio.NewReader(os.Stdin)
 	saveChoice, _ := reader.ReadString('\n')
@@ -63,8 +83,7 @@ func CreateAccessKeyForUserModel(username string) {
 			fmt.Println("Error writing to credentials file:", err)
 			return
 		}
-		fmt.Println(utils.Green+utils.Bold+"Access key and secret access key saved successfully at:", filePath+utils.Reset)
-
+		fmt.Println(utils.Green + utils.Bold + "Access key and secret access key saved successfully at: " + filePath + utils.Reset)
 	} else {
 		fmt.Println(utils.Yellow + utils.Bold + "skipped saving credentials." + utils.Reset)
 	}
@@ -78,5 +97,4 @@ func CreateAccessKeyForUserModel(username string) {
 		reciverMail = strings.TrimSpace(reciverMail)
 		service.MailService(username, reciverMail, accessKey, secretAccessKey)
 	}
-
 }
