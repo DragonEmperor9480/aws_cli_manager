@@ -41,7 +41,6 @@ func SetInitialUserPassword() {
 }
 
 func SetInitialUserPasswordDirect(username string) {
-	ListUsersController()
 
 	reader := bufio.NewReader(os.Stdin)
 

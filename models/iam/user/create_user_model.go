@@ -24,6 +24,7 @@ func CreateIAMUser(username string) {
 	// Handle output
 	if strings.Contains(output, "EntityAlreadyExists") {
 		fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' already exists!" + utils.Reset)
+		return
 	} else if strings.Contains(output, "UserName") {
 		fmt.Println(utils.Bold + utils.Green + "User '" + username + "' created successfully!" + utils.Reset)
 	} else {
