@@ -1,28 +1,32 @@
 package group
 
 import (
-	"bufio"
-	"fmt"
 	"strings"
 
-	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/DragonEmperor9480/aws_cli_manager/views"
 )
 
 func ShowGroupsTable(data string) {
-	fmt.Println(utils.Bold + "\n┌────────────────────┬───────────────────────┬──────────────────────────┐" + utils.Reset)
-	fmt.Println(utils.Bold + "│    Group Name      │       Group ID        │       Created At         │" + utils.Reset)
-	fmt.Println(utils.Bold + "├────────────────────┼───────────────────────┼──────────────────────────┤" + utils.Reset)
+	lines := strings.Split(data, "\n")
 
-	scanner := bufio.NewScanner(strings.NewReader(data))
-	for scanner.Scan() {
-		cols := strings.Fields(scanner.Text())
-		if len(cols) >= 3 {
-			groupName := cols[0]
-			groupID := cols[1]
-			createdAt := strings.Join(cols[2:], " ")
-			fmt.Printf(utils.Bold+"│ %-18s │ %-20s │ %-24s │"+utils.Reset+"\n", groupName, groupID, createdAt)
+	// Prepare data rows
+	var rows [][]string
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			groupName := fields[0]
+			groupID := fields[1]
+			createdAt := strings.Join(fields[2:], " ")
+			rows = append(rows, []string{groupName, groupID, createdAt})
 		}
 	}
 
-	fmt.Println(utils.Bold + "└────────────────────┴───────────────────────┴──────────────────────────┘" + utils.Reset)
+	// Render using common table utility
+	views.RenderTable(views.TableConfig{
+		Headers: []string{"Group Name", "Group ID", "Created At"},
+		Rows:    rows,
+	})
 }
