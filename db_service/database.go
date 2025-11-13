@@ -1,11 +1,13 @@
 package db_service
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -22,14 +24,21 @@ func InitDB() error {
 	// Create directory if it doesn't exist
 	os.MkdirAll(filepath.Dir(dbPath), 0700)
 
-	// Open database
-	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	// Open database with silent logger to suppress "record not found" errors
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			logger.Config{
+				LogLevel: logger.Silent, // Suppress all logs including "record not found"
+			},
+		),
+	})
 	if err != nil {
 		return err
 	}
 
 	// Auto-migrate schema
-	err = DB.AutoMigrate(&UserCredential{})
+	err = DB.AutoMigrate(&UserCredential{}, &MFADevice{})
 	if err != nil {
 		return err
 	}

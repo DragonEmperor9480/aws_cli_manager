@@ -38,11 +38,11 @@ func main() {
 		utils.ClearScreen()
 		views.ShowMenu()
 
-		fmt.Print("Select option [1-5]: ")
+		fmt.Print("Select option [1-5, X]: ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
-		switch input {
+		switch strings.ToLower(input) {
 		case "1":
 			fmt.Println()
 			fmt.Println("IAM MANAGEMENT")
@@ -63,6 +63,11 @@ func main() {
 			fmt.Println("CLOUDWATCH MANAGEMENT")
 			fmt.Println("────────────────────────────────────")
 			controllers.CloudWatch_mgr()
+		case "x":
+			fmt.Println()
+			fmt.Println("SETTINGS")
+			fmt.Println("────────────────────────────────────")
+			controllers.Settings_mgr()
 		case "5":
 			fmt.Println("\nExiting AWS CLI Manager...")
 			return

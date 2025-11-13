@@ -1,8 +1,9 @@
 package views
 
 import (
-	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	"fmt"
+
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
 func ShowMenu() {
@@ -15,6 +16,8 @@ func ShowMenu() {
 	fmt.Println(utils.Bold + utils.Blue + "[2]" + utils.Reset + " " + utils.Bold + "EC2" + utils.Reset + "        - Elastic Compute Cloud")
 	fmt.Println(utils.Bold + utils.Blue + "[3]" + utils.Reset + " " + utils.Bold + "S3" + utils.Reset + "         - Simple Storage Service")
 	fmt.Println(utils.Bold + utils.Blue + "[4]" + utils.Reset + " " + utils.Bold + "CloudWatch" + utils.Reset + " - Monitoring and Logging")
+	fmt.Println("────────────────────────────────────")
+	fmt.Println(utils.Bold + utils.Yellow + "[X]" + utils.Reset + " " + utils.Bold + "Settings" + utils.Reset + "   - Manage credentials and configuration")
 	fmt.Println(utils.Bold + utils.Red + "[5]" + utils.Reset + " " + utils.Bold + "Exit" + utils.Reset)
 	fmt.Println("────────────────────────────────────")
 }

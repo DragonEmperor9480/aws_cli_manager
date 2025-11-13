@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	s3model "github.com/DragonEmperor9480/aws_cli_manager/models/s3"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
@@ -14,7 +15,6 @@ func S3BucketMFADeleteController() {
 	reader := bufio.NewReader(os.Stdin)
 
 	ListS3Buckets()
-
 
 	fmt.Print("Enter Bucket Name: ")
 	bucketName, _ := reader.ReadString('\n')
@@ -35,21 +35,26 @@ func S3BucketMFADeleteController() {
 		return
 	}
 
-	if (mfaChoice == "e" && strings.Contains(status, `"MFADelete": "Enabled"`)) ||
-		(mfaChoice == "d" && strings.Contains(status, `"MFADelete": "Disabled"`)) {
+	if (mfaChoice == "e" && strings.Contains(status, "MFADelete: Enabled")) ||
+		(mfaChoice == "d" && strings.Contains(status, "MFADelete: Disabled")) {
 		fmt.Println(utils.Yellow + "Already in requested state." + utils.Reset)
 		return
 	}
 
-	// Read Security ARN
-	homeDir, _ := os.UserHomeDir()
-	arnPath := homeDir + "/.config/awsmgr/aws_config/security_arn_mfa.txt"
-	arnData, err := os.ReadFile(arnPath)
-	if err != nil || len(strings.TrimSpace(string(arnData))) == 0 {
-		fmt.Println(utils.Red + "Error: Security ARN not found in " + arnPath + utils.Reset)
+	// Get MFA device from database
+	device, err := db_service.GetMFADevice()
+	if err != nil {
+		fmt.Println(utils.Red + "Error: No MFA device found in database." + utils.Reset)
+		fmt.Println(utils.Yellow + "Please add an MFA device in Settings (press X from main menu)." + utils.Reset)
 		return
 	}
-	securityARN := strings.TrimSpace(string(arnData))
+
+	fmt.Println()
+	fmt.Printf("%sUsing MFA Device:%s %s\n", utils.Bold, utils.Reset, device.DeviceName)
+	fmt.Printf("%sDevice ARN:%s       %s\n", utils.Bold, utils.Reset, device.DeviceARN)
+	fmt.Println()
+
+	securityARN := device.DeviceARN
 
 	fmt.Print("Enter MFA code: ")
 	mfaCode, _ := reader.ReadString('\n')
