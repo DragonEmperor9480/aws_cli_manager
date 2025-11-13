@@ -95,3 +95,63 @@ func interfaceSlice(slice []string) []interface{} {
 	}
 	return result
 }
+
+// RenderTableWithoutSerial renders a table without serial numbers (useful for side-by-side displays)
+func RenderTableWithoutSerial(config TableConfig) {
+	t := table.NewWriter()
+
+	// Add headers without serial number
+	t.AppendHeader(table.Row(interfaceSlice(config.Headers)))
+
+	// Add data rows without serial numbers
+	for _, row := range config.Rows {
+		t.AppendRow(table.Row(interfaceSlice(row)))
+	}
+
+	// Apply consistent styling
+	t.SetStyle(table.StyleRounded)
+	t.Style().Options.DrawBorder = true
+	t.Style().Options.SeparateColumns = true
+	t.Style().Options.SeparateHeader = true
+	t.Style().Options.SeparateRows = true
+
+	// Color headers (cyan and bold)
+	t.Style().Color.Header = text.Colors{text.FgCyan, text.Bold}
+
+	// Make borders cyan
+	t.Style().Color.Border = text.Colors{text.FgCyan}
+	t.Style().Color.Separator = text.Colors{text.FgCyan}
+
+	// Default color scheme for data columns
+	defaultColors := []text.Color{
+		text.FgGreen,   // Column 1
+		text.FgYellow,  // Column 2
+		text.FgMagenta, // Column 3
+		text.FgCyan,    // Column 4
+		text.FgWhite,   // Column 5
+		text.FgBlue,    // Column 6
+	}
+
+	// Use custom colors if provided, otherwise use defaults
+	colors := config.ColumnColors
+	if colors == nil {
+		colors = defaultColors
+	}
+
+	// Configure columns
+	var columnConfigs []table.ColumnConfig
+	for i := 0; i < len(config.Headers); i++ {
+		colorIndex := i % len(colors)
+		columnConfigs = append(columnConfigs, table.ColumnConfig{
+			Number:       i + 1,
+			Colors:       text.Colors{colors[colorIndex]},
+			ColorsHeader: text.Colors{text.FgCyan, text.Bold},
+		})
+	}
+
+	t.SetColumnConfigs(columnConfigs)
+
+	fmt.Println()
+	fmt.Println(t.Render())
+	fmt.Println()
+}
