@@ -1,44 +1,65 @@
 package s3
 
 import (
+	"context"
 	"fmt"
-	"os/exec"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // Get current versioning + MFA status
 func GetBucketVersioning(bucket string) string {
-	cmd := exec.Command("aws", "s3api", "get-bucket-versioning", "--bucket", bucket)
-	output, _ := cmd.CombinedOutput()
-	return string(output)
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	input := &s3.GetBucketVersioningInput{
+		Bucket: &bucket,
+	}
+
+	result, err := client.GetBucketVersioning(ctx, input)
+	if err != nil {
+		return fmt.Sprintf("Error: %s", err.Error())
+	}
+
+	output := fmt.Sprintf("Status: %s\nMFADelete: %s\n", result.Status, result.MFADelete)
+	return output
 }
 
 // Update MFA Delete config
 func UpdateBucketMFADelete(bucket, securityARN, mfaCode string, enable bool) {
 	utils.ShowProcessingAnimation("Updating MFA Delete setting...")
 
-	var config string
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	var mfaDelete types.MFADelete
 	actionMsg := "disabled"
 	if enable {
-		config = "Status=Enabled,MFADelete=Enabled"
+		mfaDelete = types.MFADeleteEnabled
 		actionMsg = "enabled"
 	} else {
-		config = "Status=Enabled,MFADelete=Disabled"
+		mfaDelete = types.MFADeleteDisabled
 	}
 
-	cmd := exec.Command("aws", "s3api", "put-bucket-versioning",
-		"--bucket", bucket,
-		"--versioning-configuration", config,
-		"--mfa", fmt.Sprintf("%s %s", securityARN, mfaCode),
-	)
+	mfaString := fmt.Sprintf("%s %s", securityARN, mfaCode)
 
-	output, err := cmd.CombinedOutput()
+	input := &s3.PutBucketVersioningInput{
+		Bucket: &bucket,
+		VersioningConfiguration: &types.VersioningConfiguration{
+			Status:    types.BucketVersioningStatusEnabled,
+			MFADelete: mfaDelete,
+		},
+		MFA: &mfaString,
+	}
+
+	_, err := client.PutBucketVersioning(ctx, input)
 	utils.StopAnimation()
 
 	if err != nil {
 		fmt.Println(utils.Red + "Failed to update MFA Delete:" + utils.Reset)
-		fmt.Println(string(output))
+		fmt.Println(err.Error())
 	} else {
 		fmt.Println(utils.Green + "MFA Delete successfully " + actionMsg + " for bucket '" + bucket + "'." + utils.Reset)
 	}

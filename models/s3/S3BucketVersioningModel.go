@@ -1,42 +1,59 @@
 package s3
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os/exec"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
-
-type BucketVersioning struct {
-	Status string `json:"Status"`
-}
 
 // Get current bucket versioning status (Enabled, Suspended, or empty if never set)
 func GetBucketVersioningStatusModel(bucketName string) (string, error) {
 	utils.ShowProcessingAnimation("Checking versioning status for bucket: " + bucketName)
-	cmd := exec.Command("aws", "s3api", "get-bucket-versioning", "--bucket", bucketName)
-	out, err := cmd.Output()
+
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	input := &s3.GetBucketVersioningInput{
+		Bucket: &bucketName,
+	}
+
+	result, err := client.GetBucketVersioning(ctx, input)
 	if err != nil {
+		utils.StopAnimation()
 		return "", err
 	}
 	utils.StopAnimation()
 	fmt.Println()
 
-	var result BucketVersioning
-	_ = json.Unmarshal(out, &result)
-
-	return result.Status, nil
+	return string(result.Status), nil
 }
 
 func SetBucketVersioningModel(bucketName, status string) error {
-	cmd := exec.Command("aws", "s3api", "put-bucket-versioning",
-		"--bucket", bucketName,
-		"--versioning-configuration", "Status="+status,
-	)
-	output, err := cmd.CombinedOutput()
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	var versioningStatus types.BucketVersioningStatus
+	if status == "Enabled" {
+		versioningStatus = types.BucketVersioningStatusEnabled
+	} else if status == "Suspended" {
+		versioningStatus = types.BucketVersioningStatusSuspended
+	} else {
+		return fmt.Errorf("invalid status: %s (must be 'Enabled' or 'Suspended')", status)
+	}
+
+	input := &s3.PutBucketVersioningInput{
+		Bucket: &bucketName,
+		VersioningConfiguration: &types.VersioningConfiguration{
+			Status: versioningStatus,
+		},
+	}
+
+	_, err := client.PutBucketVersioning(ctx, input)
 	if err != nil {
-		return fmt.Errorf("%s: %s", err.Error(), string(output))
+		return fmt.Errorf("failed to set versioning: %w", err)
 	}
 	return nil
 }

@@ -2,39 +2,30 @@ package s3
 
 import (
 	"bufio"
-	"encoding/json"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type ObjectVersion struct {
-	Key       string `json:"Key"`
-	VersionId string `json:"VersionId"`
-}
-
-type ObjectVersionsOutput struct {
-	Versions      []ObjectVersion `json:"Versions"`
-	DeleteMarkers []ObjectVersion `json:"DeleteMarkers"`
-}
-
 func DeleteS3BucketModel(bucketName string) error {
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
 	// Step 0: Check if bucket has objects
-	lsCmd := exec.Command("aws", "s3api", "list-objects", "--bucket", bucketName, "--output", "json")
-	lsOut, _ := lsCmd.CombinedOutput()
-
-	var objMap map[string]interface{}
-	_ = json.Unmarshal(lsOut, &objMap)
-
-	objectsExist := false
-	if contents, ok := objMap["Contents"]; ok {
-		if arr, ok := contents.([]interface{}); ok && len(arr) > 0 {
-			objectsExist = true
-		}
+	listInput := &s3.ListObjectsV2Input{
+		Bucket: &bucketName,
 	}
+	listResult, err := client.ListObjectsV2(ctx, listInput)
+	if err != nil {
+		return fmt.Errorf("failed to list objects: %w", err)
+	}
+
+	objectsExist := len(listResult.Contents) > 0
 
 	if objectsExist {
 		// Ask user confirmation
@@ -51,42 +42,76 @@ func DeleteS3BucketModel(bucketName string) error {
 	utils.ShowProcessingAnimation("Deleting S3 bucket: " + bucketName)
 
 	// 1. Remove all objects (non-versioned bucket)
-	rmCmd := exec.Command("aws", "s3", "rm", "s3://"+bucketName, "--recursive")
-	_, rmErr := rmCmd.CombinedOutput()
-	if rmErr != nil {
-		utils.StopAnimation()
-		return fmt.Errorf("failed to empty bucket (objects deletion error)")
+	if objectsExist {
+		var objectsToDelete []types.ObjectIdentifier
+		for _, obj := range listResult.Contents {
+			objectsToDelete = append(objectsToDelete, types.ObjectIdentifier{
+				Key: obj.Key,
+			})
+		}
+
+		if len(objectsToDelete) > 0 {
+			deleteInput := &s3.DeleteObjectsInput{
+				Bucket: &bucketName,
+				Delete: &types.Delete{
+					Objects: objectsToDelete,
+				},
+			}
+			_, err := client.DeleteObjects(ctx, deleteInput)
+			if err != nil {
+				utils.StopAnimation()
+				return fmt.Errorf("failed to empty bucket (objects deletion error): %w", err)
+			}
+		}
 	}
 
 	// 2. Remove all versions if bucket is versioned
-	verCmd := exec.Command("aws", "s3api", "list-object-versions", "--bucket", bucketName, "--output", "json")
-	verOut, verErr := verCmd.CombinedOutput()
-	if verErr == nil {
-		var versions ObjectVersionsOutput
-		if err := json.Unmarshal(verOut, &versions); err == nil {
-			// Delete versions
-			for _, v := range versions.Versions {
-				exec.Command("aws", "s3api", "delete-object",
-					"--bucket", bucketName,
-					"--key", v.Key,
-					"--version-id", v.VersionId).Run()
+	versionsInput := &s3.ListObjectVersionsInput{
+		Bucket: &bucketName,
+	}
+	versionsResult, verErr := client.ListObjectVersions(ctx, versionsInput)
+	if verErr == nil && (len(versionsResult.Versions) > 0 || len(versionsResult.DeleteMarkers) > 0) {
+		var versionsToDelete []types.ObjectIdentifier
+
+		// Delete versions
+		for _, v := range versionsResult.Versions {
+			versionsToDelete = append(versionsToDelete, types.ObjectIdentifier{
+				Key:       v.Key,
+				VersionId: v.VersionId,
+			})
+		}
+
+		// Delete markers
+		for _, v := range versionsResult.DeleteMarkers {
+			versionsToDelete = append(versionsToDelete, types.ObjectIdentifier{
+				Key:       v.Key,
+				VersionId: v.VersionId,
+			})
+		}
+
+		if len(versionsToDelete) > 0 {
+			deleteVersionsInput := &s3.DeleteObjectsInput{
+				Bucket: &bucketName,
+				Delete: &types.Delete{
+					Objects: versionsToDelete,
+				},
 			}
-			// Delete markers
-			for _, v := range versions.DeleteMarkers {
-				exec.Command("aws", "s3api", "delete-object",
-					"--bucket", bucketName,
-					"--key", v.Key,
-					"--version-id", v.VersionId).Run()
+			_, err := client.DeleteObjects(ctx, deleteVersionsInput)
+			if err != nil {
+				utils.StopAnimation()
+				return fmt.Errorf("failed to delete versions: %w", err)
 			}
 		}
 	}
 
 	// 3. Delete bucket itself
-	delCmd := exec.Command("aws", "s3api", "delete-bucket", "--bucket", bucketName)
-	delOut, delErr := delCmd.CombinedOutput()
+	deleteBucketInput := &s3.DeleteBucketInput{
+		Bucket: &bucketName,
+	}
+	_, delErr := client.DeleteBucket(ctx, deleteBucketInput)
 	utils.StopAnimation()
 	if delErr != nil {
-		return fmt.Errorf("failed to delete bucket: %s", string(delOut))
+		return fmt.Errorf("failed to delete bucket: %w", delErr)
 	}
 
 	return nil

@@ -1,20 +1,35 @@
 package s3
 
 import (
-	"os/exec"
+	"context"
+	"fmt"
+	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func CreateS3BucketModel(bucketname string) {
 	utils.ShowProcessingAnimation("Creating S3 bucket: " + bucketname)
-	cmd := exec.Command("aws", "s3", "mb", "s3://"+bucketname)
-	output, err := cmd.CombinedOutput()
+
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	input := &s3.CreateBucketInput{
+		Bucket: &bucketname,
+	}
+
+	_, err := client.CreateBucket(ctx, input)
+	utils.StopAnimation()
+
 	if err != nil {
-		utils.StopAnimation()
-		println("Error creating S3 bucket:", err.Error())
+		if strings.Contains(err.Error(), "BucketAlreadyExists") || strings.Contains(err.Error(), "BucketAlreadyOwnedByYou") {
+			fmt.Println(utils.Bold + utils.Yellow + "Bucket '" + bucketname + "' already exists!" + utils.Reset)
+		} else {
+			fmt.Println(utils.Bold + utils.Red + "Error creating S3 bucket: " + err.Error() + utils.Reset)
+		}
 		return
 	}
-	utils.StopAnimation()
-	println("S3 bucket created successfully:", string(output))
+
+	fmt.Println(utils.Bold + utils.Green + "S3 bucket '" + bucketname + "' created successfully!" + utils.Reset)
 }
