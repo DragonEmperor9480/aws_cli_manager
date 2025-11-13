@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/controllers"
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	"github.com/DragonEmperor9480/aws_cli_manager/views"
 )
@@ -16,6 +17,12 @@ func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
 		utils.GetVersion()
 		return
+	}
+
+	// Initialize database
+	if err := db_service.InitDB(); err != nil {
+		fmt.Println(utils.Red + "Error initializing database: " + err.Error() + utils.Reset)
+		fmt.Println(utils.Yellow + "Credentials will not be saved." + utils.Reset)
 	}
 
 	reader := bufio.NewReader(os.Stdin)
