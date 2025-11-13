@@ -27,3 +27,18 @@ func InitAWSClients() error {
 	LambdaClient = lambda.NewFromConfig(cfg)
 	return nil
 }
+
+// GetIAMClient returns the IAM client
+func GetIAMClient() *iam.Client {
+	return IAMClient
+}
+
+// GetLogsClient returns the CloudWatch Logs client
+func GetLogsClient() *cloudwatchlogs.Client {
+	return LogsClient
+}
+
+// GetLambdaClient returns the Lambda client
+func GetLambdaClient() *lambda.Client {
+	return LambdaClient
+}

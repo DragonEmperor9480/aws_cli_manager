@@ -2,19 +2,26 @@ package group
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func DeleteGroupModel(groupname string) {
+	client := utils.GetIAMClient()
+	ctx := context.TODO()
+
 	// Check if group exists
 	utils.ShowProcessingAnimation("Checking group existence...")
-	cmd := exec.Command("aws", "iam", "get-group", "--group-name", groupname)
-	if err := cmd.Run(); err != nil {
+	getGroupInput := &iam.GetGroupInput{
+		GroupName: &groupname,
+	}
+	getGroupOutput, err := client.GetGroup(ctx, getGroupInput)
+	if err != nil {
 		utils.StopAnimation()
 		fmt.Println(utils.Red + utils.Bold + "Error: Group '" + groupname + "' does not exist." + utils.Reset)
 		return
@@ -24,14 +31,24 @@ func DeleteGroupModel(groupname string) {
 	utils.ShowProcessingAnimation("Checking attached policies and users...")
 
 	// Fetch attached policies
-	cmd = exec.Command("aws", "iam", "list-attached-group-policies", "--group-name", groupname, "--query", "AttachedPolicies[*].PolicyArn", "--output", "text")
-	policyBytes, _ := cmd.Output()
-	policies := strings.Fields(string(policyBytes))
+	listPoliciesInput := &iam.ListAttachedGroupPoliciesInput{
+		GroupName: &groupname,
+	}
+	policiesOutput, _ := client.ListAttachedGroupPolicies(ctx, listPoliciesInput)
+	var policies []string
+	for _, policy := range policiesOutput.AttachedPolicies {
+		if policy.PolicyArn != nil {
+			policies = append(policies, *policy.PolicyArn)
+		}
+	}
 
 	// Fetch users
-	cmd = exec.Command("aws", "iam", "get-group", "--group-name", groupname, "--query", "Users[*].UserName", "--output", "text")
-	userBytes, _ := cmd.Output()
-	users := strings.Fields(string(userBytes))
+	var users []string
+	for _, user := range getGroupOutput.Users {
+		if user.UserName != nil {
+			users = append(users, *user.UserName)
+		}
+	}
 
 	utils.StopAnimation()
 
@@ -43,7 +60,6 @@ func DeleteGroupModel(groupname string) {
 		if len(users) > 0 {
 			fmt.Println(utils.Yellow+"- Users:", strings.Join(users, ", ")+utils.Reset)
 		}
-		utils.StopAnimation()
 		fmt.Print(utils.Bold + "\nDo you want to detach policies and remove users before deleting? (y/n): " + utils.Reset)
 
 		reader := bufio.NewReader(os.Stdin)
@@ -58,8 +74,12 @@ func DeleteGroupModel(groupname string) {
 	if len(policies) > 0 {
 		utils.ShowProcessingAnimation("Detaching policies...")
 		for _, policyArn := range policies {
-			detachCmd := exec.Command("aws", "iam", "detach-group-policy", "--group-name", groupname, "--policy-arn", policyArn)
-			if err := detachCmd.Run(); err != nil {
+			detachInput := &iam.DetachGroupPolicyInput{
+				GroupName: &groupname,
+				PolicyArn: &policyArn,
+			}
+			_, err := client.DetachGroupPolicy(ctx, detachInput)
+			if err != nil {
 				fmt.Println(utils.Red + utils.Bold + "Failed to detach policy: " + policyArn + " (" + err.Error() + ")" + utils.Reset)
 			} else {
 				fmt.Println(utils.Green + "Detached policy: " + policyArn + utils.Reset)
@@ -73,7 +93,11 @@ func DeleteGroupModel(groupname string) {
 	if len(users) > 0 {
 		utils.ShowProcessingAnimation("Removing users from group...")
 		for _, user := range users {
-			exec.Command("aws", "iam", "remove-user-from-group", "--group-name", groupname, "--user-name", user).Run()
+			removeUserInput := &iam.RemoveUserFromGroupInput{
+				GroupName: &groupname,
+				UserName:  &user,
+			}
+			client.RemoveUserFromGroup(ctx, removeUserInput)
 		}
 		utils.StopAnimation()
 		fmt.Println(utils.Yellow + "Removed all users from '" + groupname + "'." + utils.Reset)
@@ -81,8 +105,10 @@ func DeleteGroupModel(groupname string) {
 
 	// Delete group
 	utils.ShowProcessingAnimation("Deleting group '" + groupname + "'...")
-	cmd = exec.Command("aws", "iam", "delete-group", "--group-name", groupname)
-	err := cmd.Run()
+	deleteInput := &iam.DeleteGroupInput{
+		GroupName: &groupname,
+	}
+	_, err = client.DeleteGroup(ctx, deleteInput)
 	utils.StopAnimation()
 
 	if err != nil {

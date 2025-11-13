@@ -1,17 +1,31 @@
 package group
 
 import (
-	"os/exec"
-	"strings"
+	"context"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func ListUserGroupsModel(username string) []string {
-	cmd := exec.Command("aws", "iam", "list-groups-for-user", "--user-name", username, "--query", "Groups[*].GroupName", "--output", "text")
-	outputBytes, _ := cmd.Output()
-	output := string(outputBytes)
+	client := utils.GetIAMClient()
+	ctx := context.TODO()
 
-	// Split the space-separated group names into a slice
-	groupNames := strings.Fields(output)
+	input := &iam.ListGroupsForUserInput{
+		UserName: &username,
+	}
+
+	result, err := client.ListGroupsForUser(ctx, input)
+	if err != nil {
+		return []string{}
+	}
+
+	var groupNames []string
+	for _, group := range result.Groups {
+		if group.GroupName != nil {
+			groupNames = append(groupNames, *group.GroupName)
+		}
+	}
+
 	return groupNames
 }
