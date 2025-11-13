@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	s3model "github.com/DragonEmperor9480/aws_cli_manager/models/s3"
-
 )
 
 func S3ListBucketObjectsController() {
+	ListS3Buckets()
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter the bucket name you want to list objects from: ")
 	bucketName, _ := reader.ReadString('\n')

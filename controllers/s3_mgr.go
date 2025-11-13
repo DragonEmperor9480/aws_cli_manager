@@ -36,6 +36,7 @@ func S3_mgr() {
 			utils.Bk()
 		case "5":
 			s3controller.S3BucketVersioningController()
+			utils.Bk()
 		case "6":
 			s3controller.S3BucketMFADeleteController()
 			utils.Bk()

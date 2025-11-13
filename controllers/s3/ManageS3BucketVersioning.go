@@ -38,17 +38,18 @@ func S3BucketVersioningController() {
 
 	var newStatus string
 	if status == "Enabled" {
-		fmt.Print("Do you want to Suspend versioning? (Y/N): ")
+		fmt.Print("Do you want to Suspend versioning? (y/n): ")
 		choice, _ := reader.ReadString('\n')
-		choice = strings.TrimSpace(strings.ToUpper(choice))
-		if choice == "Y" {
+		choice = strings.TrimSpace(choice)
+		if choice == "y" {
 			newStatus = "Suspended"
 		}
 	} else {
-		fmt.Print("Do you want to Enable versioning? (Y/N): ")
+		fmt.Print("Do you want to Enable versioning? (y/n): ")
 		choice, _ := reader.ReadString('\n')
-		choice = strings.TrimSpace(strings.ToUpper(choice))
-		if choice == "Y" {
+		choice = strings.TrimSpace(choice)
+
+		if choice == "y" {
 			newStatus = "Enabled"
 		}
 	}
@@ -61,9 +62,15 @@ func S3BucketVersioningController() {
 	// Apply change
 	err = s3model.SetBucketVersioningModel(bucketName, newStatus)
 	if err != nil {
-		fmt.Println("Error setting versioning:", err.Error())
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "MfaDelete") || strings.Contains(errMsg, "MFA") {
+			fmt.Println(utils.Red + "\n Cannot change versioning: MFA Delete is enabled on this bucket." + utils.Reset)
+			fmt.Println(utils.Yellow + "Please disable MFA Delete first before changing versioning status." + utils.Reset)
+		} else {
+			fmt.Println(utils.Red + "Error setting versioning: " + errMsg + utils.Reset)
+		}
 		return
 	}
 
-	fmt.Println("Bucket versioning updated to:", newStatus)
+	fmt.Println(utils.Green + "✓ Bucket versioning updated to: " + newStatus + utils.Reset)
 }

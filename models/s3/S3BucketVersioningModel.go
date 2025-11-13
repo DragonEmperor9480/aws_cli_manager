@@ -34,6 +34,9 @@ func SetBucketVersioningModel(bucketName, status string) error {
 		"--bucket", bucketName,
 		"--versioning-configuration", "Status="+status,
 	)
-	_, err := cmd.Output()
-	return err
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err.Error(), string(output))
+	}
+	return nil
 }
