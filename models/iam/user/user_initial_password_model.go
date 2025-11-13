@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
@@ -60,19 +60,12 @@ func SetInitialUserPasswordModel(username, password string) {
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
 
 	if saveChoice == "y" {
-		homeDir, err := os.UserHomeDir()
+		err := db_service.SaveUserCredential(username, password)
 		if err != nil {
-			fmt.Println(utils.Red + utils.Bold + "Error: Unable to determine user home directory." + utils.Reset)
+			fmt.Println(utils.Red + utils.Bold + "Error saving credentials: " + err.Error() + utils.Reset)
 			return
 		}
-
-		credentialsDir := filepath.Join(homeDir, ".config", "awsmgr", "user_credentials")
-
-		filePath := filepath.Join(credentialsDir,username+"_credentials.txt")
-		content := fmt.Sprintf("username: %s\npassword: %s\n", username, password)
-		os.WriteFile(filePath, []byte(content), 0644)
-
-		fmt.Println(utils.Green + utils.Bold + "Credentials saved at " + filePath + utils.Reset)
+		fmt.Println(utils.Green + utils.Bold + "✓ Credentials saved securely to database" + utils.Reset)
 	}
 
 	// Show credentials

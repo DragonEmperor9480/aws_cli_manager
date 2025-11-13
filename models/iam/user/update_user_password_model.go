@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
@@ -43,14 +44,12 @@ func UpdateUserPasswordModel(username, password string) {
 	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
 
 	if saveChoice == "y" {
-		credentialsDir := "/home/" + os.Getenv("USER") + "/.config/awsmgr/user_credentials"
-		os.MkdirAll(credentialsDir, 0755)
-
-		filePath := credentialsDir + "/" + username + ".txt"
-		content := fmt.Sprintf("username: %s\npassword: %s\n", username, password)
-		os.WriteFile(filePath, []byte(content), 0644)
-
-		fmt.Println(utils.Green + utils.Bold + "Credentials saved at " + filePath + utils.Reset)
+		err := db_service.UpdateUserPassword(username, password)
+		if err != nil {
+			fmt.Println(utils.Red + utils.Bold + "Error updating credentials: " + err.Error() + utils.Reset)
+			return
+		}
+		fmt.Println(utils.Green + utils.Bold + "✓ Credentials updated securely in database" + utils.Reset)
 	}
 
 	// Show credentials
