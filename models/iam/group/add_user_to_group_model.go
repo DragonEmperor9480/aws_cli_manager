@@ -1,28 +1,36 @@
 package group
 
 import (
+	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func AddUserToGroupModel(username, groupname string) {
 	utils.ShowProcessingAnimation("Adding User to Group")
-	cmd := exec.Command("aws", "iam", "add-user-to-group", "--user-name", username, "--group-name", groupname)
-	outputBytes, _ := cmd.CombinedOutput()
-	utils.StopAnimation()
-	output := string(outputBytes)
 
+	ctx := context.TODO()
+	_, err := utils.IAMClient.AddUserToGroup(ctx, &iam.AddUserToGroupInput{
+		UserName:  aws.String(username),
+		GroupName: aws.String(groupname),
+	})
+
+	utils.StopAnimation()
 	fmt.Println()
 
-	if strings.TrimSpace(output) == "" {
-		fmt.Println(utils.Bold + utils.Green + "User '" + username + "' added to group '" + groupname + "' successfully!" + utils.Reset)
-	} else if strings.Contains(output, "NoSuchEntity") {
-		fmt.Println(utils.Bold + utils.Red + "Error: Either the User or Group does not exist!" + utils.Reset)
-	} else {
-		fmt.Println(utils.Yellow + "Unexpected error occurred:" + utils.Reset)
-		fmt.Println(output)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchEntity") {
+			fmt.Println(utils.Bold + utils.Red + "Error: Either the User or Group does not exist!" + utils.Reset)
+		} else {
+			fmt.Println(utils.Yellow + "Unexpected error occurred:" + utils.Reset)
+			fmt.Println(err.Error())
+		}
+		return
 	}
+
+	fmt.Println(utils.Bold + utils.Green + "User '" + username + "' added to group '" + groupname + "' successfully!" + utils.Reset)
 }

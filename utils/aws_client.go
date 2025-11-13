@@ -4,10 +4,16 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 )
 
-var IAMClient *iam.Client
+var (
+	IAMClient    *iam.Client
+	LogsClient   *cloudwatchlogs.Client
+	LambdaClient *lambda.Client
+)
 
 // InitAWSClients initializes AWS SDK clients
 func InitAWSClients() error {
@@ -17,5 +23,7 @@ func InitAWSClients() error {
 	}
 
 	IAMClient = iam.NewFromConfig(cfg)
+	LogsClient = cloudwatchlogs.NewFromConfig(cfg)
+	LambdaClient = lambda.NewFromConfig(cfg)
 	return nil
 }

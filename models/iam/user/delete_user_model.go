@@ -2,52 +2,73 @@ package user
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 func DeleteIAMUser(username string) {
-	utils.ShowProcessingAnimation("Processing")
-	// Check if user exists
-	checkCmd := exec.Command("aws", "iam", "get-user", "--user-name", username)
-	checkBytes, _ := checkCmd.CombinedOutput()
+	ctx := context.TODO()
 	reader := bufio.NewReader(os.Stdin)
-	
+
+	utils.ShowProcessingAnimation("Processing")
+
+	// Check if user exists
+	_, err := utils.IAMClient.GetUser(ctx, &iam.GetUserInput{
+		UserName: aws.String(username),
+	})
+
 	utils.StopAnimation()
-	
-	if strings.Contains(string(checkBytes), "NoSuchEntity") {
+
+	if err != nil && strings.Contains(err.Error(), "NoSuchEntity") {
 		fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' does not exist!" + utils.Reset)
 		return
 	}
-	
+
 	utils.ShowProcessingAnimation("Checking IAM User dependencies...")
 
 	// Get groups
-	groupCmd := exec.Command("aws", "iam", "list-groups-for-user", "--user-name", username, "--output", "text", "--query", "Groups[*].GroupName")
-	groupBytes, _ := groupCmd.CombinedOutput()
-	groups := strings.Fields(string(groupBytes))
+	groupsResult, _ := utils.IAMClient.ListGroupsForUser(ctx, &iam.ListGroupsForUserInput{
+		UserName: aws.String(username),
+	})
+	var groups []string
+	for _, g := range groupsResult.Groups {
+		groups = append(groups, aws.ToString(g.GroupName))
+	}
 
 	// Get attached managed policies
-	policyCmd := exec.Command("aws", "iam", "list-attached-user-policies", "--user-name", username, "--output", "text", "--query", "AttachedPolicies[*].PolicyName")
-	policyBytes, _ := policyCmd.CombinedOutput()
-	policies := strings.Fields(string(policyBytes))
+	policiesResult, _ := utils.IAMClient.ListAttachedUserPolicies(ctx, &iam.ListAttachedUserPoliciesInput{
+		UserName: aws.String(username),
+	})
+	var policies []string
+	var policyArns []string
+	for _, p := range policiesResult.AttachedPolicies {
+		policies = append(policies, aws.ToString(p.PolicyName))
+		policyArns = append(policyArns, aws.ToString(p.PolicyArn))
+	}
 
 	// Get inline policies
-	inlineCmd := exec.Command("aws", "iam", "list-user-policies", "--user-name", username, "--output", "text", "--query", "PolicyNames[*]")
-	inlineBytes, _ := inlineCmd.CombinedOutput()
-	inlinePolicies := strings.Fields(string(inlineBytes))
+	inlineResult, _ := utils.IAMClient.ListUserPolicies(ctx, &iam.ListUserPoliciesInput{
+		UserName: aws.String(username),
+	})
+	inlinePolicies := inlineResult.PolicyNames
 
 	// Get access keys
-	keyCmd := exec.Command("aws", "iam", "list-access-keys", "--user-name", username, "--output", "text", "--query", "AccessKeyMetadata[*].AccessKeyId")
-	keyBytes, _ := keyCmd.CombinedOutput()
-	accessKeys := strings.Fields(string(keyBytes))
+	keysResult, _ := utils.IAMClient.ListAccessKeys(ctx, &iam.ListAccessKeysInput{
+		UserName: aws.String(username),
+	})
+	var accessKeys []string
+	for _, k := range keysResult.AccessKeyMetadata {
+		accessKeys = append(accessKeys, aws.ToString(k.AccessKeyId))
+	}
 
 	utils.StopAnimation()
-	
+
 	if len(groups) > 0 || len(policies) > 0 || len(inlinePolicies) > 0 || len(accessKeys) > 0 {
 		fmt.Println(utils.Yellow + "User '" + username + "' has the following dependencies:" + utils.Reset)
 
@@ -89,57 +110,71 @@ func DeleteIAMUser(username string) {
 
 		// Remove user from all groups
 		for _, g := range groups {
-			exec.Command("aws", "iam", "remove-user-from-group", "--user-name", username, "--group-name", g).Run()
+			utils.IAMClient.RemoveUserFromGroup(ctx, &iam.RemoveUserFromGroupInput{
+				UserName:  aws.String(username),
+				GroupName: aws.String(g),
+			})
 		}
 
 		// Detach all managed policies
-		for _, p := range policies {
-			arnCmd := exec.Command("aws", "iam", "list-attached-user-policies", "--user-name", username, "--output", "text", "--query", "AttachedPolicies[?PolicyName=='"+p+"'].PolicyArn | [0]")
-			arnBytes, _ := arnCmd.CombinedOutput()
-			arn := strings.TrimSpace(string(arnBytes))
-			if arn != "" {
-				exec.Command("aws", "iam", "detach-user-policy", "--user-name", username, "--policy-arn", arn).Run()
-			}
+		for _, arn := range policyArns {
+			utils.IAMClient.DetachUserPolicy(ctx, &iam.DetachUserPolicyInput{
+				UserName:  aws.String(username),
+				PolicyArn: aws.String(arn),
+			})
 		}
 
 		// Delete all inline policies
 		for _, p := range inlinePolicies {
-			exec.Command("aws", "iam", "delete-user-policy", "--user-name", username, "--policy-name", p).Run()
+			utils.IAMClient.DeleteUserPolicy(ctx, &iam.DeleteUserPolicyInput{
+				UserName:   aws.String(username),
+				PolicyName: aws.String(p),
+			})
 		}
 
-		// Deactivate & delete access keys
+		// Delete access keys
 		for _, k := range accessKeys {
-			exec.Command("aws", "iam", "update-access-key", "--user-name", username, "--access-key-id", k, "--status", "Inactive").Run()
-			exec.Command("aws", "iam", "delete-access-key", "--user-name", username, "--access-key-id", k).Run()
+			utils.IAMClient.DeleteAccessKey(ctx, &iam.DeleteAccessKeyInput{
+				UserName:    aws.String(username),
+				AccessKeyId: aws.String(k),
+			})
 		}
-
 	}
+
 	utils.StopAnimation()
+
 	// Delete login profile if exists
-	loginProfileCmd := exec.Command("aws", "iam", "get-login-profile", "--user-name", username)
-	loginProfileBytes, _ := loginProfileCmd.CombinedOutput()
-	if !strings.Contains(string(loginProfileBytes), "NoSuchEntity") {
-		fmt.Println("Would you like to delete the login profile for the user? (y/N): ")
-		deleteLoginProfileChoice, _ := reader.ReadString(' ')
+	_, err = utils.IAMClient.GetLoginProfile(ctx, &iam.GetLoginProfileInput{
+		UserName: aws.String(username),
+	})
+	if err == nil {
+		fmt.Print("Would you like to delete the login profile for the user? (y/N): ")
+		deleteLoginProfileChoice, _ := reader.ReadString('\n')
 		deleteLoginProfileChoice = strings.ToLower(strings.TrimSpace(deleteLoginProfileChoice))
 		if deleteLoginProfileChoice == "y" || deleteLoginProfileChoice == "yes" {
-
-			exec.Command("aws", "iam", "delete-login-profile", "--user-name", username).Run()
+			utils.IAMClient.DeleteLoginProfile(ctx, &iam.DeleteLoginProfileInput{
+				UserName: aws.String(username),
+			})
 		}
 	}
+
 	// Delete the IAM user
 	utils.ShowProcessingAnimation("Deleting IAM User")
-	cmd := exec.Command("aws", "iam", "delete-user", "--user-name", username)
-	outputBytes, _ := cmd.CombinedOutput()
+	_, err = utils.IAMClient.DeleteUser(ctx, &iam.DeleteUserInput{
+		UserName: aws.String(username),
+	})
 	utils.StopAnimation()
 	fmt.Println()
 
-	if strings.Contains(string(outputBytes), "NoSuchEntity") {
-		fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' does not exist!" + utils.Reset)
-	} else if strings.TrimSpace(string(outputBytes)) == "" {
-		fmt.Println(utils.Bold + utils.Green + "User '" + username + "' deleted successfully!" + utils.Reset)
-	} else {
-		fmt.Println(utils.Yellow + "Unexpected error occurred:" + utils.Reset)
-		fmt.Println(string(outputBytes))
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchEntity") {
+			fmt.Println(utils.Bold + utils.Red + "Error: User '" + username + "' does not exist!" + utils.Reset)
+		} else {
+			fmt.Println(utils.Yellow + "Unexpected error occurred:" + utils.Reset)
+			fmt.Println(err.Error())
+		}
+		return
 	}
+
+	fmt.Println(utils.Bold + utils.Green + "User '" + username + "' deleted successfully!" + utils.Reset)
 }

@@ -1,22 +1,15 @@
 package cloudwatch
 
 import (
-	"bufio"
 	"context"
-	"os/exec"
 	"regexp"
 	"strings"
-)
 
-// FetchLambdaFunctions retrieves all Lambda function names
-func FetchLambdaFunctions() ([]byte, error) {
-	cmd := exec.Command("aws", "lambda", "list-functions", "--query", "Functions[*].[FunctionName]", "--output", "text")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, err
-	}
-	return output, nil
-}
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+)
 
 // LogEntry represents a parsed log entry with color information
 type LogEntry struct {
@@ -24,11 +17,27 @@ type LogEntry struct {
 	Color   string
 }
 
+// FetchLambdaFunctions retrieves all Lambda function names using AWS SDK
+func FetchLambdaFunctions() ([]byte, error) {
+	ctx := context.TODO()
+	result, err := utils.LambdaClient.ListFunctions(ctx, &lambda.ListFunctionsInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Format output to match old text format
+	var output strings.Builder
+	for _, fn := range result.Functions {
+		output.WriteString(aws.ToString(fn.FunctionName))
+		output.WriteString("\n")
+	}
+
+	return []byte(output.String()), nil
+}
+
 // ParseLogLine extracts the actual log message from CloudWatch format
-// Format: TIMESTAMP STREAM_ID MESSAGE
 func ParseLogLine(line string) LogEntry {
 	// Regex to match timestamp and stream ID at the beginning
-	// Example: 2025-11-13T04:11:50.643000+00:00 2025/11/13/[$LATEST]b2cd0cdf48ca47c1aa7e7833aab60a59
 	re := regexp.MustCompile(`^\S+\s+\S+\s+(.*)$`)
 	matches := re.FindStringSubmatch(line)
 
@@ -84,32 +93,63 @@ func determineLogColor(message string) string {
 	return "white"
 }
 
-// StreamLambdaLogs streams logs from a Lambda function log group
+// StreamLambdaLogs streams logs from a Lambda function log group using AWS SDK
 func StreamLambdaLogs(ctx context.Context, logGroupName string, logChan chan<- LogEntry, errChan chan<- error) {
-	cmd := exec.CommandContext(ctx, "aws", "logs", "tail", logGroupName, "--follow")
-	stdout, err := cmd.StdoutPipe()
+	// Use FilterLogEvents with follow-like behavior
+	input := &cloudwatchlogs.FilterLogEventsInput{
+		LogGroupName: aws.String(logGroupName),
+		StartTime:    aws.Int64(0), // Start from beginning or use time.Now().Unix() * 1000 for recent
+	}
+
+	// Initial fetch
+	result, err := utils.LogsClient.FilterLogEvents(ctx, input)
 	if err != nil {
 		errChan <- err
 		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		errChan <- err
-		return
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
+	// Send initial events
+	for _, event := range result.Events {
+		message := aws.ToString(event.Message)
+		if message == "" {
+			continue
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case logChan <- ParseLogLine(scanner.Text()):
+		case logChan <- ParseLogLine(message):
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		errChan <- err
-	}
+	// Continue polling for new events
+	nextToken := result.NextToken
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if nextToken != nil {
+				input.NextToken = nextToken
+			}
 
-	cmd.Wait()
+			result, err := utils.LogsClient.FilterLogEvents(ctx, input)
+			if err != nil {
+				continue // Ignore errors and keep trying
+			}
+
+			for _, event := range result.Events {
+				message := aws.ToString(event.Message)
+				if message == "" {
+					continue
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case logChan <- ParseLogLine(message):
+				}
+			}
+
+			nextToken = result.NextToken
+		}
+	}
 }
