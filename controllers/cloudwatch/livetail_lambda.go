@@ -27,6 +27,12 @@ func LiveTailLambdaLogs() {
 	}
 
 	functions := strings.Split(strings.TrimSpace(string(output)), "\n")
+	
+	//Add a for loop to trim the function names
+	for i := range functions {
+		functions[i] = strings.TrimSpace(functions[i])
+	}
+	
 	if len(functions) == 0 || functions[0] == "" {
 		fmt.Println(utils.Yellow + "No Lambda functions found in your account." + utils.Reset)
 		return
@@ -58,7 +64,7 @@ func LiveTailLambdaLogs() {
 		return
 	}
 
-	selectedFunction := functions[selection-1]
+	selectedFunction := strings.TrimSpace(functions[selection-1])
 	logGroupName := "/aws/lambda/" + selectedFunction
 
 	fmt.Println()
