@@ -1,23 +1,19 @@
 package group
 
 import (
-	"fmt"
-
-	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	"github.com/DragonEmperor9480/aws_cli_manager/views"
 )
 
 // Display only usernames and group names side-by-side
 func ShowUsersAndGroupsSideBySide(users []string, groups []string) {
-	fmt.Println()
-	fmt.Println(utils.Bold + "┌────────────────────────────┬────────────────────────────┐" + utils.Reset)
-	fmt.Println(utils.Bold + "│         IAM Users          │        IAM Groups          │" + utils.Reset)
-	fmt.Println(utils.Bold + "├────────────────────────────┼────────────────────────────┤" + utils.Reset)
-
+	// Determine max rows
 	maxRows := len(users)
 	if len(groups) > maxRows {
 		maxRows = len(groups)
 	}
 
+	// Prepare data rows
+	var rows [][]string
 	for i := 0; i < maxRows; i++ {
 		user := ""
 		group := ""
@@ -29,8 +25,12 @@ func ShowUsersAndGroupsSideBySide(users []string, groups []string) {
 			group = groups[i]
 		}
 
-		fmt.Printf(utils.Bold+"│ %-26s │ %-26s │"+utils.Reset+"\n", user, group)
+		rows = append(rows, []string{user, group})
 	}
 
-	fmt.Println(utils.Bold + "└────────────────────────────┴────────────────────────────┘" + utils.Reset)
+	// Render using common table utility (without serial numbers for side-by-side view)
+	views.RenderTableWithoutSerial(views.TableConfig{
+		Headers: []string{"IAM Users", "IAM Groups"},
+		Rows:    rows,
+	})
 }
