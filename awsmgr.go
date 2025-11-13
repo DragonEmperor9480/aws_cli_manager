@@ -25,6 +25,13 @@ func main() {
 		fmt.Println(utils.Yellow + "Credentials will not be saved." + utils.Reset)
 	}
 
+	// Initialize AWS SDK clients
+	if err := utils.InitAWSClients(); err != nil {
+		fmt.Println(utils.Red + "Error initializing AWS clients: " + err.Error() + utils.Reset)
+		fmt.Println(utils.Yellow + "Please configure AWS credentials (aws configure)" + utils.Reset)
+		return
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
