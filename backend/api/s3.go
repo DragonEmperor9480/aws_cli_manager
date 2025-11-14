@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/models/s3"
@@ -130,4 +131,34 @@ func UpdateBucketMFADelete(w http.ResponseWriter, r *http.Request) {
 		"bucketname": bucketname,
 		"enabled":    req.Enable,
 	})
+}
+
+// DownloadS3Object downloads an object from S3 bucket
+func DownloadS3Object(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bucketname := vars["bucketname"]
+	objectkey := vars["objectkey"]
+
+	// Get object data
+	data, err := s3.DownloadS3Object(bucketname, objectkey)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Get metadata to set proper content type
+	metadata, err := s3.GetObjectMetadata(bucketname, objectkey)
+	if err == nil {
+		if contentType, ok := metadata["content_type"].(*string); ok && contentType != nil {
+			w.Header().Set("Content-Type", *contentType)
+		}
+	}
+
+	// Set headers for file download
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+objectkey+"\"")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+
+	// Write the file data
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
