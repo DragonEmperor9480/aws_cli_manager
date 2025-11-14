@@ -40,6 +40,11 @@ func DownloadS3Object(bucketName, objectKey string) ([]byte, error) {
 // DownloadS3ObjectToFile downloads an object from S3 and saves it to a local file
 // This is useful for CLI where we want to save directly to disk
 func DownloadS3ObjectToFile(bucketName, objectKey, destinationPath string) error {
+	return DownloadS3ObjectToFileWithProgress(bucketName, objectKey, destinationPath, nil)
+}
+
+// DownloadS3ObjectToFileWithProgress downloads with progress callback
+func DownloadS3ObjectToFileWithProgress(bucketName, objectKey, destinationPath string, progressCallback ProgressCallback) error {
 	client := utils.GetS3Client()
 	ctx := context.TODO()
 
@@ -54,6 +59,12 @@ func DownloadS3ObjectToFile(bucketName, objectKey, destinationPath string) error
 	}
 	defer result.Body.Close()
 
+	// Get total size
+	totalSize := int64(0)
+	if result.ContentLength != nil {
+		totalSize = *result.ContentLength
+	}
+
 	// Create destination directory if it doesn't exist
 	destDir := filepath.Dir(destinationPath)
 	if err := os.MkdirAll(destDir, 0755); err != nil {
@@ -67,8 +78,19 @@ func DownloadS3ObjectToFile(bucketName, objectKey, destinationPath string) error
 	}
 	defer outFile.Close()
 
-	// Copy the S3 object data to the file
-	bytesWritten, err := io.Copy(outFile, result.Body)
+	// Copy with progress tracking
+	var bytesWritten int64
+	if progressCallback != nil {
+		reader := &progressReader{
+			reader:   result.Body,
+			callback: progressCallback,
+			total:    totalSize,
+		}
+		bytesWritten, err = io.Copy(outFile, reader)
+	} else {
+		bytesWritten, err = io.Copy(outFile, result.Body)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to write object to file: %w", err)
 	}
