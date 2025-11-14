@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../screens/s3_browser_screen.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8080/api';
@@ -118,14 +119,79 @@ class ApiService {
     throw Exception('Failed to get versioning status');
   }
 
-  static Future<List<int>> downloadS3Object(String bucketname, String objectkey) async {
-    final response = await http.get(
+  static Future<List<int>> downloadS3Object(
+    String bucketname,
+    String objectkey, {
+    Function(int received, int total)? onProgress,
+  }) async {
+    final request = http.Request(
+      'GET',
       Uri.parse('$baseUrl/s3/buckets/$bucketname/objects/$objectkey'),
     );
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
+
+    final response = await request.send();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to download object');
     }
-    throw Exception('Failed to download object');
+
+    final contentLength = response.contentLength ?? 0;
+    final bytes = <int>[];
+    int received = 0;
+
+    await for (var chunk in response.stream) {
+      bytes.addAll(chunk);
+      received += chunk.length;
+      onProgress?.call(received, contentLength);
+    }
+
+    return bytes;
+  }
+
+  static Future<List<S3Item>> listS3ItemsWithPrefix(String bucketname, String prefix) async {
+    final uri = Uri.parse('$baseUrl/s3/buckets/$bucketname/items').replace(
+      queryParameters: {'prefix': prefix},
+    );
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final items = data['items'] as List;
+      return items.map((item) => S3Item.fromJson(item)).toList();
+    }
+    throw Exception('Failed to load items');
+  }
+
+  static Future<void> uploadS3Object(String bucketname, String key, dynamic file) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/upload'),
+    );
+    request.fields['key'] = key;
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    
+    final response = await request.send();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to upload file');
+    }
+  }
+
+  static Future<void> deleteS3Object(String bucketname, String objectkey) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/objects/$objectkey'),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete object');
+    }
+  }
+
+  static Future<void> createS3Folder(String bucketname, String folderPath) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/folder'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'folder_path': folderPath}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create folder');
+    }
   }
 
   // Settings

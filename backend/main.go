@@ -67,11 +67,16 @@ func main() {
 	r.HandleFunc("/api/s3/buckets/{bucketname}", api.DeleteS3Bucket).Methods("DELETE")
 	r.HandleFunc("/api/s3/buckets/{bucketname}/versioning", api.GetBucketVersioning).Methods("GET")
 	r.HandleFunc("/api/s3/buckets/{bucketname}/versioning", api.SetBucketVersioning).Methods("PUT")
-	r.HandleFunc("/api/s3/buckets/{bucketname}/objects/{objectkey:.*}", api.DownloadS3Object).Methods("GET")
-	r.HandleFunc("/api/s3/buckets/{bucketname}/objects", api.ListS3Objects).Methods("GET")
-	r.HandleFunc("/api/s3/buckets/{bucketname}/versioning", api.SetBucketVersioning).Methods("PUT")
 	r.HandleFunc("/api/s3/buckets/{bucketname}/mfa-delete", api.GetBucketMFADelete).Methods("GET")
 	r.HandleFunc("/api/s3/buckets/{bucketname}/mfa-delete", api.UpdateBucketMFADelete).Methods("PUT")
+
+	// S3 Objects
+	r.HandleFunc("/api/s3/buckets/{bucketname}/items", api.ListS3ObjectsWithPrefix).Methods("GET")
+	r.HandleFunc("/api/s3/buckets/{bucketname}/upload", api.UploadS3Object).Methods("POST")
+	r.HandleFunc("/api/s3/buckets/{bucketname}/folder", api.CreateS3Folder).Methods("POST")
+	r.HandleFunc("/api/s3/buckets/{bucketname}/objects/{objectkey:.*}", api.DeleteS3Object).Methods("DELETE")
+	r.HandleFunc("/api/s3/buckets/{bucketname}/objects/{objectkey:.*}", api.DownloadS3Object).Methods("GET")
+	r.HandleFunc("/api/s3/buckets/{bucketname}/objects", api.ListS3Objects).Methods("GET")
 
 	// CloudWatch
 	r.HandleFunc("/api/cloudwatch/logs/{loggroup}", api.GetCloudWatchLogs).Methods("GET")

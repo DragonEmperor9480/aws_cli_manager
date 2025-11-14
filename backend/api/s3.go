@@ -1,11 +1,17 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/models/s3"
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
+	s3sdk "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gorilla/mux"
 )
 
@@ -133,32 +139,187 @@ func UpdateBucketMFADelete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DownloadS3Object downloads an object from S3 bucket
+// DownloadS3Object downloads an object from S3 bucket with streaming support
 func DownloadS3Object(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketname := vars["bucketname"]
 	objectkey := vars["objectkey"]
 
-	// Get object data
-	data, err := s3.DownloadS3Object(bucketname, objectkey)
+	// Get AWS S3 client
+	client := utils.GetS3Client()
+	ctx := context.TODO()
+
+	input := &s3sdk.GetObjectInput{
+		Bucket: &bucketname,
+		Key:    &objectkey,
+	}
+
+	result, err := client.GetObject(ctx, input)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer result.Body.Close()
+
+	// Get metadata to set proper content type
+	if result.ContentType != nil {
+		w.Header().Set("Content-Type", *result.ContentType)
+	}
+
+	// Set headers for file download
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+objectkey+"\"")
+
+	// CRITICAL: Set content length for Dio progress tracking
+	if result.ContentLength != nil {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", *result.ContentLength))
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	// Stream the data in small chunks with slight delay for progress visibility
+	buffer := make([]byte, 16*1024) // 16KB chunks
+	for {
+		n, err := result.Body.Read(buffer)
+		if n > 0 {
+			if _, writeErr := w.Write(buffer[:n]); writeErr != nil {
+				return
+			}
+			// Flush immediately to send data to client
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			// Small delay to allow progress updates (10ms per chunk)
+			time.Sleep(10 * time.Millisecond)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+// ListS3ObjectsWithPrefix lists objects in a bucket with a prefix (for folder navigation)
+func ListS3ObjectsWithPrefix(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bucketname := vars["bucketname"]
+	prefix := r.URL.Query().Get("prefix")
+
+	items, err := s3.ListS3ItemsWithPrefix(bucketname, prefix)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Get metadata to set proper content type
-	metadata, err := s3.GetObjectMetadata(bucketname, objectkey)
-	if err == nil {
-		if contentType, ok := metadata["content_type"].(*string); ok && contentType != nil {
-			w.Header().Set("Content-Type", *contentType)
-		}
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"bucketname": bucketname,
+		"prefix":     prefix,
+		"items":      items,
+	})
+}
+
+// UploadS3Object uploads a file to S3
+func UploadS3Object(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bucketname := vars["bucketname"]
+
+	// Parse multipart form (max 100MB)
+	err := r.ParseMultipartForm(100 << 20)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Failed to parse form: "+err.Error())
+		return
 	}
 
-	// Set headers for file download
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+objectkey+"\"")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Failed to get file: "+err.Error())
+		return
+	}
+	defer file.Close()
 
-	// Write the file data
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	objectKey := r.FormValue("key")
+	if objectKey == "" {
+		objectKey = header.Filename
+	}
+
+	// Save to temp file
+	tempFile := "/tmp/" + header.Filename
+	outFile, err := os.Create(tempFile)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create temp file: "+err.Error())
+		return
+	}
+	defer outFile.Close()
+	defer os.Remove(tempFile)
+
+	_, err = io.Copy(outFile, file)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to save file: "+err.Error())
+		return
+	}
+
+	// Upload to S3
+	err = s3.UploadS3Object(bucketname, objectKey, tempFile)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to upload to S3: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message":    "File uploaded successfully",
+		"bucketname": bucketname,
+		"key":        objectKey,
+	})
+}
+
+// DeleteS3Object deletes an object from S3
+func DeleteS3Object(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bucketname := vars["bucketname"]
+	objectkey := vars["objectkey"]
+
+	err := s3.DeleteS3Object(bucketname, objectkey)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message":    "Object deleted successfully",
+		"bucketname": bucketname,
+		"key":        objectkey,
+	})
+}
+
+// CreateS3Folder creates a folder (empty object with / suffix) in S3
+func CreateS3Folder(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	bucketname := vars["bucketname"]
+
+	var req struct {
+		FolderPath string `json:"folder_path"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.FolderPath == "" {
+		respondError(w, http.StatusBadRequest, "folder_path is required")
+		return
+	}
+
+	err := s3.CreateS3Folder(bucketname, req.FolderPath)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"message":     "Folder created successfully",
+		"bucketname":  bucketname,
+		"folder_path": req.FolderPath,
+	})
 }

@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/loading_animation.dart';
 import '../theme/app_theme.dart';
+import 's3_browser_screen.dart';
 
 class S3Screen extends StatefulWidget {
   const S3Screen({super.key});
@@ -213,7 +214,7 @@ class _S3ScreenState extends State<S3Screen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BucketObjectsScreen(bucketName: bucketName),
+        builder: (context) => S3BrowserScreen(bucketName: bucketName),
       ),
     );
   }
