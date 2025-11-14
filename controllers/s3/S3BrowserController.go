@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	s3model "github.com/DragonEmperor9480/aws_cli_manager/models/s3"
 	s3view "github.com/DragonEmperor9480/aws_cli_manager/views/s3"
@@ -279,19 +280,24 @@ func (b *S3Browser) createFolder() {
 			return
 		}
 
-		// Enable loading animation
+		// Show loading message
 		b.loadingMode = true
 		b.loadingMessage = fmt.Sprintf("Creating folder: %s", folderName)
 		b.loadingFrame = 0
 
-		// Animate while creating
+		// Create folder in goroutine with animation
 		done := make(chan error, 1)
 		go func() {
 			folderPath := b.currentPath + folderName
 			done <- s3model.CreateS3Folder(b.bucketName, folderPath)
 		}()
 
-		// Animation loop
+		// Animate while waiting (with timeout)
+		ticker := time.NewTicker(80 * time.Millisecond)
+		defer ticker.Stop()
+
+		timeout := time.After(10 * time.Second)
+
 		for {
 			select {
 			case err := <-done:
@@ -303,26 +309,13 @@ func (b *S3Browser) createFolder() {
 					b.loadItems()
 				}
 				return
-			default:
+			case <-ticker.C:
 				b.loadingFrame++
 				b.render()
-				// Small delay for animation
-				ev := b.screen.PollEvent()
-				if ev != nil {
-					// Check if still waiting
-					select {
-					case err := <-done:
-						b.loadingMode = false
-						if err != nil {
-							b.statusMsg = fmt.Sprintf("Create folder failed: %v", err)
-						} else {
-							b.statusMsg = fmt.Sprintf("Created folder: %s", folderName)
-							b.loadItems()
-						}
-						return
-					default:
-					}
-				}
+			case <-timeout:
+				b.loadingMode = false
+				b.statusMsg = "Create folder timed out"
+				return
 			}
 		}
 	}

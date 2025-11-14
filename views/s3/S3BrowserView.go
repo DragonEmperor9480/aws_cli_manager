@@ -13,18 +13,18 @@ func RenderS3Browser(screen tcell.Screen, items []s3.S3Item, selectedIndex int, 
 	screen.Clear()
 	width, height := screen.Size()
 
-	// Header
-	headerStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite).Bold(true)
-	header := fmt.Sprintf(" S3 Browser - Bucket: %s ", bucketName)
+	// Header with gradient-like effect
+	headerStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorSilver).Bold(true)
+	header := fmt.Sprintf(" 📦 S3 Browser - Bucket: %s ", bucketName)
 	drawText(screen, 0, 0, width, headerStyle, header)
 
-	// Current path
-	pathStyle := tcell.StyleDefault.Background(tcell.ColorDarkCyan).Foreground(tcell.ColorWhite)
-	pathText := fmt.Sprintf(" Path: /%s ", currentPath)
+	// Current path with better color
+	pathStyle := tcell.StyleDefault.Background(tcell.ColorTeal).Foreground(tcell.ColorWhite).Bold(true)
+	pathText := fmt.Sprintf(" 📂 Path: /%s ", currentPath)
 	drawText(screen, 0, 1, width, pathStyle, pathText)
 
-	// Column headers
-	headerRowStyle := tcell.StyleDefault.Background(tcell.ColorDarkGray).Foreground(tcell.ColorWhite).Bold(true)
+	// Column headers with improved styling
+	headerRowStyle := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorBlack).Bold(true)
 	drawText(screen, 0, 3, width, headerRowStyle, fmt.Sprintf(" %-50s %-15s %-20s", "Name", "Size", "Modified"))
 
 	// Items list
@@ -39,16 +39,20 @@ func RenderS3Browser(screen tcell.Screen, items []s3.S3Item, selectedIndex int, 
 		y := startY + i
 		style := tcell.StyleDefault
 
-		// Highlight selected item
+		// Highlight selected item with better colors
 		if i == selectedIndex {
-			style = style.Background(tcell.ColorDarkBlue).Foreground(tcell.ColorWhite).Bold(true)
+			style = style.Background(tcell.ColorPurple).Foreground(tcell.ColorWhite).Bold(true)
 		}
 
-		// Icon and name
+		// Icon and name with better folder color
 		icon := "📄"
 		if item.IsFolder {
 			icon = "📁"
-			style = style.Foreground(tcell.ColorYellow)
+			if i != selectedIndex {
+				style = style.Foreground(tcell.ColorOlive).Bold(true)
+			}
+		} else if i != selectedIndex {
+			style = style.Foreground(tcell.ColorSilver)
 		}
 
 		name := item.Key
@@ -70,19 +74,21 @@ func RenderS3Browser(screen tcell.Screen, items []s3.S3Item, selectedIndex int, 
 		drawText(screen, 0, y, width, style, line)
 	}
 
-	// Help bar
+	// Help bar with high contrast
 	helpY := height - 3
-	helpStyle := tcell.StyleDefault.Background(tcell.ColorDarkGray).Foreground(tcell.ColorWhite)
+	helpStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite).Bold(true)
 	help := " ↑↓:Nav | Enter:Open | Back:← | ^D:Download | ^U:Upload | ^N:Folder | ^X:Del | Q:Quit "
 	drawText(screen, 0, helpY, width, helpStyle, centerText(help, width))
 
-	// Status bar
+	// Status bar with dynamic colors
 	statusY := height - 1
-	statusStyle := tcell.StyleDefault.Background(tcell.ColorDarkGreen).Foreground(tcell.ColorWhite)
-	if strings.Contains(statusMsg, "Error") || strings.Contains(statusMsg, "Failed") {
-		statusStyle = statusStyle.Background(tcell.ColorDarkRed)
+	statusStyle := tcell.StyleDefault.Background(tcell.ColorGreen).Foreground(tcell.ColorBlack).Bold(true)
+	if strings.Contains(statusMsg, "Error") || strings.Contains(statusMsg, "Failed") || strings.Contains(statusMsg, "failed") {
+		statusStyle = tcell.StyleDefault.Background(tcell.ColorMaroon).Foreground(tcell.ColorWhite).Bold(true)
+	} else if strings.Contains(statusMsg, "Downloading") || strings.Contains(statusMsg, "Uploading") || strings.Contains(statusMsg, "Creating") {
+		statusStyle = tcell.StyleDefault.Background(tcell.ColorOlive).Foreground(tcell.ColorWhite).Bold(true)
 	}
-	drawText(screen, 0, statusY, width, statusStyle, fmt.Sprintf(" %s ", statusMsg))
+	drawText(screen, 0, statusY, width, statusStyle, fmt.Sprintf(" ⚡ %s ", statusMsg))
 
 	screen.Show()
 }
@@ -136,9 +142,9 @@ func ShowMessage(screen tcell.Screen, title, message string) {
 	startX := (width - boxWidth) / 2
 	startY := (height - boxHeight) / 2
 
-	// Draw box
-	boxStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	borderStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite).Bold(true)
+	// Draw box with better colors
+	boxStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorSilver)
+	borderStyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorWhite).Bold(true)
 
 	// Border
 	for y := startY; y < startY+boxHeight; y++ {
@@ -173,9 +179,9 @@ func RenderInputDialog(screen tcell.Screen, prompt, input string) {
 	startX := (width - boxWidth) / 2
 	startY := (height - boxHeight) / 2
 
-	// Draw box background
-	boxStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	borderStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite).Bold(true)
+	// Draw box background with better colors
+	boxStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorSilver)
+	borderStyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorWhite).Bold(true)
 
 	// Border
 	for y := startY; y < startY+boxHeight; y++ {
@@ -194,8 +200,8 @@ func RenderInputDialog(screen tcell.Screen, prompt, input string) {
 	// Prompt
 	drawText(screen, startX+2, startY+2, boxWidth-4, boxStyle, prompt)
 
-	// Input field
-	inputStyle := tcell.StyleDefault.Background(tcell.ColorDarkGray).Foreground(tcell.ColorWhite)
+	// Input field with better contrast
+	inputStyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack).Bold(true)
 	inputY := startY + 4
 	inputFieldWidth := boxWidth - 4
 
@@ -212,15 +218,22 @@ func RenderInputDialog(screen tcell.Screen, prompt, input string) {
 		screen.SetContent(startX+2+i, inputY, r, nil, inputStyle)
 	}
 
-	// Draw cursor
+	// Draw cursor with high visibility
 	cursorX := startX + 2 + len(input)
 	if cursorX < startX+2+inputFieldWidth {
-		screen.SetContent(cursorX, inputY, '█', nil, inputStyle.Foreground(tcell.ColorYellow))
+		cursorStyle := tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack).Bold(true)
+		screen.SetContent(cursorX, inputY, '█', nil, cursorStyle)
 	}
 
-	// Help text
-	helpStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGray)
-	drawText(screen, startX+2, startY+6, boxWidth-4, helpStyle, "Press Enter to submit, Esc to cancel")
+	// Help text with better visibility
+	helpStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorWhite)
+	helpText := "Press Enter to submit, Esc to cancel"
+	for i, r := range helpText {
+		if i >= boxWidth-4 {
+			break
+		}
+		screen.SetContent(startX+2+i, startY+6, r, nil, helpStyle)
+	}
 
 	screen.Show()
 }
@@ -235,9 +248,9 @@ func RenderProgressDialog(screen tcell.Screen, message string, current, total in
 	startX := (width - boxWidth) / 2
 	startY := (height - boxHeight) / 2
 
-	// Draw box background
-	boxStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	borderStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite).Bold(true)
+	// Draw box background with better colors
+	boxStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorSilver)
+	borderStyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorWhite).Bold(true)
 
 	// Border
 	for y := startY; y < startY+boxHeight; y++ {
@@ -279,9 +292,9 @@ func RenderProgressDialog(screen tcell.Screen, message string, current, total in
 	progressBarY := startY + 5
 	filledWidth := int(float64(progressBarWidth) * percentage / 100)
 
-	// Draw progress bar background
-	progressBgStyle := tcell.StyleDefault.Background(tcell.ColorDarkGray).Foreground(tcell.ColorWhite)
-	progressFillStyle := tcell.StyleDefault.Background(tcell.ColorGreen).Foreground(tcell.ColorWhite)
+	// Draw progress bar background with vibrant colors
+	progressBgStyle := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorWhite)
+	progressFillStyle := tcell.StyleDefault.Background(tcell.ColorLime).Foreground(tcell.ColorBlack).Bold(true)
 
 	for x := 0; x < progressBarWidth; x++ {
 		style := progressBgStyle
@@ -291,18 +304,19 @@ func RenderProgressDialog(screen tcell.Screen, message string, current, total in
 		screen.SetContent(startX+4+x, progressBarY, ' ', nil, style)
 	}
 
-	// Progress text
+	// Progress text with high contrast
+	progressTextStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorWhite).Bold(true)
 	progressText := fmt.Sprintf("%.1f%% (%s / %s)", percentage, formatSize(current), formatSize(total))
 	centeredProgress := centerText(progressText, boxWidth-4)
 	for i, r := range centeredProgress {
 		if i >= boxWidth-4 {
 			break
 		}
-		screen.SetContent(startX+2+i, startY+7, r, nil, boxStyle)
+		screen.SetContent(startX+2+i, startY+7, r, nil, progressTextStyle)
 	}
 
-	// Help text
-	helpStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGray)
+	// Help text with better visibility
+	helpStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorWhite)
 	helpText := centerText("Please wait...", boxWidth-4)
 	for i, r := range helpText {
 		if i >= boxWidth-4 {
@@ -324,9 +338,9 @@ func RenderLoadingDialog(screen tcell.Screen, message string, frame int) {
 	startX := (width - boxWidth) / 2
 	startY := (height - boxHeight) / 2
 
-	// Draw box background
-	boxStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	borderStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite).Bold(true)
+	// Draw box background with better colors
+	boxStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorSilver)
+	borderStyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorWhite).Bold(true)
 
 	// Border
 	for y := startY; y < startY+boxHeight; y++ {
@@ -340,22 +354,46 @@ func RenderLoadingDialog(screen tcell.Screen, message string, frame int) {
 	}
 
 	// Title
-	drawText(screen, startX, startY, boxWidth, borderStyle, centerText(" Loading ", boxWidth))
+	titleText := centerText(" Loading ", boxWidth)
+	for i, r := range titleText {
+		if i >= boxWidth {
+			break
+		}
+		screen.SetContent(startX+i, startY, r, nil, borderStyle)
+	}
 
 	// Message
-	drawText(screen, startX+2, startY+2, boxWidth-4, boxStyle, centerText(message, boxWidth-4))
+	centeredMsg := centerText(message, boxWidth-4)
+	for i, r := range centeredMsg {
+		if i >= boxWidth-4 {
+			break
+		}
+		screen.SetContent(startX+2+i, startY+2, r, nil, boxStyle)
+	}
 
-	// Loading animation (spinner)
+	// Loading animation (spinner) with high contrast
 	spinnerFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	spinner := spinnerFrames[frame%len(spinnerFrames)]
 
-	spinnerStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorBlue).Bold(true)
+	spinnerStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorYellow).Bold(true)
 	spinnerText := fmt.Sprintf("%s  Processing...  %s", spinner, spinner)
-	drawText(screen, startX+2, startY+5, boxWidth-4, spinnerStyle, centerText(spinnerText, boxWidth-4))
+	centeredSpinner := centerText(spinnerText, boxWidth-4)
+	for i, r := range centeredSpinner {
+		if i >= boxWidth-4 {
+			break
+		}
+		screen.SetContent(startX+2+i, startY+5, r, nil, spinnerStyle)
+	}
 
-	// Help text
-	helpStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGray)
-	drawText(screen, startX+2, startY+7, boxWidth-4, helpStyle, centerText("Please wait...", boxWidth-4))
+	// Help text with better visibility
+	helpStyle := tcell.StyleDefault.Background(tcell.ColorNavy).Foreground(tcell.ColorWhite)
+	helpText := centerText("Please wait...", boxWidth-4)
+	for i, r := range helpText {
+		if i >= boxWidth-4 {
+			break
+		}
+		screen.SetContent(startX+2+i, startY+7, r, nil, helpStyle)
+	}
 
 	screen.Show()
 }
