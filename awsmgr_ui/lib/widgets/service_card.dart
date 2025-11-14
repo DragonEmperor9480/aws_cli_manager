@@ -42,8 +42,8 @@ class _ServiceCardState extends State<ServiceCard> {
           boxShadow: [
             BoxShadow(
               color: _isHovered
-                  ? widget.color.withOpacity(0.15)
-                  : Colors.black.withOpacity(0.05),
+                  ? widget.color.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: _isHovered ? 12 : 4,
               offset: const Offset(0, 2),
             ),
@@ -55,72 +55,69 @@ class _ServiceCardState extends State<ServiceCard> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: widget.color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          color: widget.color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           widget.icon,
-                          size: 28,
+                          size: 22,
                           color: widget.color,
                         ),
                       ),
                       if (widget.count != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: 6,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: widget.color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color: widget.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             '${widget.count}',
                             style: TextStyle(
                               color: widget.color,
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 10,
                             ),
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.description,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.description,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Text(
@@ -128,13 +125,13 @@ class _ServiceCardState extends State<ServiceCard> {
                         style: TextStyle(
                           color: widget.color,
                           fontWeight: FontWeight.w500,
-                          fontSize: 13,
+                          fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Icon(
                         Icons.arrow_forward,
-                        size: 14,
+                        size: 11,
                         color: widget.color,
                       ),
                     ],
