@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	s3model "github.com/DragonEmperor9480/aws_cli_manager/models/s3"
+	views "github.com/DragonEmperor9480/aws_cli_manager/views/s3"
 )
 
 func S3ListBucketObjectsController() {
@@ -21,5 +22,13 @@ func S3ListBucketObjectsController() {
 		return
 	}
 
-	s3model.S3ListBucketObjects(bucketName)
+	output, err := s3model.S3ListBucketObjects(bucketName)
+	if err != nil {
+		views.PrintError(err.Error())
+		return
+	}
+
+	// Parse output back to lines for view
+	lines := strings.Split(output, "\n")
+	views.PrintS3Objects(lines)
 }
