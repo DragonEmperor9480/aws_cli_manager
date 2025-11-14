@@ -42,12 +42,47 @@ func CreateIAMUser(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"message": "User created", "username": req.Username})
 }
 
-// DeleteIAMUser deletes an IAM user
+// CheckUserDependencies checks what dependencies a user has before deletion
+func CheckUserDependencies(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"]
+
+	deps, err := user.CheckUserDependencies(username)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, deps)
+}
+
+// DeleteIAMUser deletes an IAM user (with force flag to remove dependencies)
 func DeleteIAMUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	username := vars["username"]
 
-	user.DeleteIAMUser(username)
+	// Check for force parameter
+	force := r.URL.Query().Get("force") == "true"
+
+	if !force {
+		// Check if user has dependencies
+		deps, err := user.CheckUserDependencies(username)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		if deps.HasDependencies() {
+			respondError(w, http.StatusBadRequest, "User has dependencies. Use force=true to delete with dependencies.")
+			return
+		}
+	}
+
+	err := user.DeleteIAMUserAPI(username)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	respondJSON(w, http.StatusOK, map[string]string{"message": "User deleted", "username": username})
 }
 

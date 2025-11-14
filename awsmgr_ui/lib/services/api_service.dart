@@ -25,10 +25,21 @@ class ApiService {
     }
   }
 
-  static Future<void> deleteIAMUser(String username) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/iam/users/$username'),
+  static Future<Map<String, dynamic>> checkUserDependencies(String username) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/iam/users/$username/dependencies'),
     );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to check dependencies');
+  }
+
+  static Future<void> deleteIAMUser(String username, {bool force = false}) async {
+    final url = force 
+        ? '$baseUrl/iam/users/$username?force=true'
+        : '$baseUrl/iam/users/$username';
+    final response = await http.delete(Uri.parse(url));
     if (response.statusCode != 200) {
       throw Exception('Failed to delete user');
     }
@@ -96,6 +107,30 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to save MFA device');
+    }
+  }
+
+  // AWS Configuration
+  static Future<Map<String, dynamic>> getAWSConfig() async {
+    final response = await http.get(Uri.parse('$baseUrl/aws/config'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to get AWS config');
+  }
+
+  static Future<void> configureAWS(String accessKeyId, String secretAccessKey, String region) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/aws/config'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'access_key_id': accessKeyId,
+        'secret_access_key': secretAccessKey,
+        'region': region,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to configure AWS: ${response.body}');
     }
   }
 }

@@ -81,8 +81,12 @@ class _S3ScreenState extends State<S3Screen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('S3 Management'),
+      ),
+      body: Column(
+        children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -114,7 +118,8 @@ class _S3ScreenState extends State<S3Screen> {
                   child: Text(_buckets.isEmpty ? 'No buckets found' : _buckets),
                 ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }

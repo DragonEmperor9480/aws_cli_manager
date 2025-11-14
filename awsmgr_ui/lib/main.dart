@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/backend_service.dart';
 import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,7 +10,7 @@ void main() async {
   try {
     await BackendService.start();
   } catch (e) {
-    print('Failed to start backend: $e');
+    debugPrint('Failed to start backend: $e');
   }
 
   runApp(const MyApp());
@@ -23,10 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AWS Manager',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const HomeScreen(),
     );
   }
