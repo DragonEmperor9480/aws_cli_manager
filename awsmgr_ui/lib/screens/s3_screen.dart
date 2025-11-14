@@ -433,8 +433,113 @@ class BucketObjectsScreen extends StatefulWidget {
   State<BucketObjectsScreen> createState() => _BucketObjectsScreenState();
 }
 
+class S3Object {
+  final String key;
+  final String lastModified;
+  final int size;
+
+  S3Object({
+    required this.key,
+    required this.lastModified,
+    required this.size,
+  });
+
+  String get extension {
+    final parts = key.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : '';
+  }
+
+  IconData get icon {
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'zip':
+      case 'rar':
+      case '7z':
+      case 'tar':
+      case 'gz':
+        return Icons.folder_zip;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'bmp':
+      case 'svg':
+        return Icons.image;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'mkv':
+        return Icons.video_file;
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return Icons.audio_file;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'txt':
+      case 'md':
+        return Icons.text_snippet;
+      case 'json':
+      case 'xml':
+      case 'yaml':
+      case 'yml':
+        return Icons.code;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Color get iconColor {
+    switch (extension) {
+      case 'pdf':
+        return Colors.red;
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return Colors.orange;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Colors.purple;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return Colors.blue;
+      case 'mp3':
+      case 'wav':
+        return Colors.green;
+      case 'doc':
+      case 'docx':
+        return Colors.blue.shade700;
+      case 'xls':
+      case 'xlsx':
+        return Colors.green.shade700;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String get formattedSize {
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    if (size < 1024 * 1024 * 1024) {
+      return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+}
+
 class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
-  String _objects = '';
+  List<S3Object> _objects = [];
   String _versioningStatus = 'Loading...';
   bool _loading = false;
 
@@ -448,8 +553,31 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
   Future<void> _loadObjects() async {
     setState(() => _loading = true);
     try {
-      final objects = await ApiService.listS3Objects(widget.bucketName);
-      setState(() => _objects = objects);
+      final objectsStr = await ApiService.listS3Objects(widget.bucketName);
+      // Parse objects from string
+      // Format: "2024-11-14 10:30:00       1234 file.txt"
+      final objectList = objectsStr
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .map((line) {
+            final parts = line.trim().split(RegExp(r'\s+'));
+            if (parts.length >= 4) {
+              final date = parts[0];
+              final time = parts[1];
+              final size = int.tryParse(parts[2]) ?? 0;
+              final key = parts.sublist(3).join(' ');
+              return S3Object(
+                key: key,
+                lastModified: '$date $time',
+                size: size,
+              );
+            }
+            return null;
+          })
+          .whereType<S3Object>()
+          .toList();
+      
+      setState(() => _objects = objectList);
     } catch (e) {
       _showError('Failed to load objects: $e');
     } finally {
@@ -590,20 +718,75 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                           ],
                         ),
                       )
-                    : SingleChildScrollView(
+                    : ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: SelectableText(
-                              _objects,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 13,
+                        itemCount: _objects.length,
+                        itemBuilder: (context, index) {
+                          final object = _objects[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(16),
+                              leading: Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: object.iconColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  object.icon,
+                                  color: object.iconColor,
+                                  size: 28,
+                                ),
+                              ),
+                              title: Text(
+                                object.key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.storage,
+                                          size: 12, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        object.formattedSize,
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Icon(Icons.access_time,
+                                          size: 12, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          object.lastModified,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
           ),
         ],
