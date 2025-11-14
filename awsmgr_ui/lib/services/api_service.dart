@@ -1,0 +1,101 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = 'http://localhost:8080/api';
+
+  // IAM Users
+  static Future<List<dynamic>> listIAMUsers() async {
+    final response = await http.get(Uri.parse('$baseUrl/iam/users'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['users'] ?? [];
+    }
+    throw Exception('Failed to load users');
+  }
+
+  static Future<void> createIAMUser(String username) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'username': username}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create user');
+    }
+  }
+
+  static Future<void> deleteIAMUser(String username) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/iam/users/$username'),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete user');
+    }
+  }
+
+  // IAM Groups
+  static Future<List<dynamic>> listIAMGroups() async {
+    final response = await http.get(Uri.parse('$baseUrl/iam/groups'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['groups'] ?? [];
+    }
+    throw Exception('Failed to load groups');
+  }
+
+  static Future<void> createIAMGroup(String groupname) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/groups'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'groupname': groupname}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create group');
+    }
+  }
+
+  // S3 Buckets
+  static Future<String> listS3Buckets() async {
+    final response = await http.get(Uri.parse('$baseUrl/s3/buckets'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['buckets'] ?? '';
+    }
+    throw Exception('Failed to load buckets');
+  }
+
+  static Future<void> createS3Bucket(String bucketname) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/s3/buckets'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'bucketname': bucketname}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create bucket');
+    }
+  }
+
+  // Settings
+  static Future<Map<String, dynamic>?> getMFADevice() async {
+    final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    return null;
+  }
+
+  static Future<void> saveMFADevice(String deviceName, String deviceArn) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/settings/mfa'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'device_name': deviceName,
+        'device_arn': deviceArn,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to save MFA device');
+    }
+  }
+}
