@@ -10,8 +10,18 @@ class S3Screen extends StatefulWidget {
   State<S3Screen> createState() => _S3ScreenState();
 }
 
+class BucketInfo {
+  final String name;
+  final String creationDate;
+
+  BucketInfo({
+    required this.name,
+    required this.creationDate,
+  });
+}
+
 class _S3ScreenState extends State<S3Screen> {
-  List<String> _buckets = [];
+  List<BucketInfo> _buckets = [];
   bool _loading = false;
   bool _operationInProgress = false;
 
@@ -25,17 +35,26 @@ class _S3ScreenState extends State<S3Screen> {
     setState(() => _loading = true);
     try {
       final bucketsStr = await ApiService.listS3Buckets();
-      // Parse bucket names from the string
+      // Parse bucket info from the string
       // Format: "2024-11-14 10:30:00 bucket-name"
       final bucketList = bucketsStr
           .split('\n')
           .where((line) => line.trim().isNotEmpty)
           .map((line) {
-            // Extract bucket name (last part after date and time)
             final parts = line.trim().split(' ');
-            return parts.length >= 3 ? parts.sublist(2).join(' ') : line.trim();
+            if (parts.length >= 3) {
+              final date = parts[0];
+              final time = parts[1];
+              final name = parts.sublist(2).join(' ');
+              return BucketInfo(
+                name: name,
+                creationDate: '$date $time',
+              );
+            }
+            return BucketInfo(name: line.trim(), creationDate: 'Unknown');
           })
           .toList();
+      
       setState(() => _buckets = bucketList);
     } catch (e) {
       _showError('Failed to load buckets: $e');
@@ -321,7 +340,7 @@ class _S3ScreenState extends State<S3Screen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: InkWell(
-                                onTap: () => _viewBucketObjects(bucket),
+                                onTap: () => _viewBucketObjects(bucket.name),
                                 borderRadius: BorderRadius.circular(12),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
@@ -351,23 +370,23 @@ class _S3ScreenState extends State<S3Screen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              bucket,
+                                              bucket.name,
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             Row(
                                               children: [
-                                                Icon(Icons.public,
-                                                    size: 14, color: Colors.grey[600]),
+                                                Icon(Icons.calendar_today,
+                                                    size: 12, color: Colors.grey[600]),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  'S3 Object Storage',
+                                                  bucket.creationDate,
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
-                                                    fontSize: 12,
+                                                    fontSize: 11,
                                                   ),
                                                 ),
                                               ],
@@ -379,7 +398,7 @@ class _S3ScreenState extends State<S3Screen> {
                                         icon: const Icon(Icons.delete_outline),
                                         color: AppTheme.errorRed,
                                         tooltip: 'Delete bucket',
-                                        onPressed: () => _deleteBucket(bucket),
+                                        onPressed: () => _deleteBucket(bucket.name),
                                         style: IconButton.styleFrom(
                                           backgroundColor: AppTheme.errorRed.withOpacity(0.1),
                                           shape: RoundedRectangleBorder(
@@ -416,12 +435,14 @@ class BucketObjectsScreen extends StatefulWidget {
 
 class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
   String _objects = '';
+  String _versioningStatus = 'Loading...';
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _loadObjects();
+    _loadVersioningStatus();
   }
 
   Future<void> _loadObjects() async {
@@ -433,6 +454,17 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
       _showError('Failed to load objects: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadVersioningStatus() async {
+    try {
+      final status = await ApiService.getBucketVersioning(widget.bucketName);
+      setState(() {
+        _versioningStatus = status.isEmpty ? 'Disabled' : status;
+      });
+    } catch (e) {
+      setState(() => _versioningStatus = 'Unknown');
     }
   }
 
@@ -489,20 +521,42 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                   child: const Icon(Icons.folder_open, color: AppTheme.s3Color),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Objects',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
+                      const Text(
                         'Files and folders in this bucket',
                         style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            _versioningStatus == 'Enabled'
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            size: 14,
+                            color: _versioningStatus == 'Enabled'
+                                ? AppTheme.successGreen
+                                : Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Versioning: $_versioningStatus',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

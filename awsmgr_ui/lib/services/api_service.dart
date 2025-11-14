@@ -107,6 +107,17 @@ class ApiService {
     throw Exception('Failed to load objects');
   }
 
+  static Future<String> getBucketVersioning(String bucketname) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/versioning'),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['status'] ?? '';
+    }
+    throw Exception('Failed to get versioning status');
+  }
+
   // Settings
   static Future<Map<String, dynamic>?> getMFADevice() async {
     final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
