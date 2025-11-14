@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -69,28 +68,60 @@ output = json
 
 // GetAWSConfig gets current AWS configuration
 func GetAWSConfig(w http.ResponseWriter, r *http.Request) {
-	cmd := exec.Command("aws", "configure", "list")
-	output, err := cmd.CombinedOutput()
+	// Check if credentials file exists
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		respondJSON(w, http.StatusOK, map[string]interface{}{
 			"configured": false,
-			"message":    "AWS CLI not configured",
+			"message":    "Failed to get home directory",
 		})
 		return
 	}
 
-	// Check if credentials are actually configured
-	outputStr := string(output)
-	if strings.Contains(outputStr, "not set") || strings.Contains(outputStr, "<not set>") {
+	credentialsFile := filepath.Join(homeDir, ".aws", "credentials")
+	configFile := filepath.Join(homeDir, ".aws", "config")
+
+	// Check if credentials file exists and is not empty
+	credInfo, err := os.Stat(credentialsFile)
+	if err != nil || credInfo.Size() == 0 {
 		respondJSON(w, http.StatusOK, map[string]interface{}{
 			"configured": false,
-			"message":    "AWS credentials not configured",
+			"message":    "AWS credentials file not found",
+		})
+		return
+	}
+
+	// Check if config file exists
+	_, err = os.Stat(configFile)
+	if err != nil {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"configured": false,
+			"message":    "AWS config file not found",
+		})
+		return
+	}
+
+	// Try to read credentials to verify they're valid format
+	credContent, err := os.ReadFile(credentialsFile)
+	if err != nil {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"configured": false,
+			"message":    "Failed to read credentials file",
+		})
+		return
+	}
+
+	credStr := string(credContent)
+	if !strings.Contains(credStr, "aws_access_key_id") || !strings.Contains(credStr, "aws_secret_access_key") {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"configured": false,
+			"message":    "Credentials file is invalid",
 		})
 		return
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"configured": true,
-		"output":     outputStr,
+		"message":    "AWS credentials configured",
 	})
 }
