@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
-	views "github.com/DragonEmperor9480/aws_cli_manager/views/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -23,17 +22,14 @@ func S3ListBucketObjects(bucketName string) (string, error) {
 	// Handle errors
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchBucket") {
-			views.PrintError("The specified bucket '" + bucketName + "' does not exist!")
 			return "", fmt.Errorf("the specified bucket '%s' does not exist", bucketName)
 		} else {
-			views.PrintError("Error fetching objects: " + err.Error())
 			return "", fmt.Errorf("error fetching objects: %v", err)
 		}
 	}
 
 	// Empty bucket
 	if len(result.Contents) == 0 {
-		views.PrintWarning("No objects found in bucket '" + bucketName + "'.")
 		return "No objects found in bucket '" + bucketName + "'.", nil
 	}
 

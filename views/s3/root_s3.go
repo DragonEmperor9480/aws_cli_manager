@@ -16,7 +16,7 @@ func ShowS3Menu() {
 	fmt.Println("  " + utils.Bold + "1)" + utils.Reset + "  Create S3 Bucket")
 	fmt.Println("  " + utils.Bold + "2)" + utils.Reset + "  List S3 Buckets")
 	fmt.Println("  " + utils.Bold + "3)" + utils.Reset + "  Delete S3 Bucket")
-	fmt.Println("  " + utils.Bold + "4)" + utils.Reset + "  List Objects in a Bucket")
+	fmt.Println("  " + utils.Bold + "4)" + utils.Reset + "  Browse S3 Bucket (TUI)")
 	fmt.Println("  " + utils.Bold + "5)" + utils.Reset + "  Enable/Suspend Versioning on Bucket")
 	fmt.Println("  " + utils.Bold + "6)" + utils.Reset + "  Enable/Disable MFA Delete on Bucket")
 	fmt.Println("  " + utils.Bold + "7)" + utils.Reset + "  Back to Main Menu")
