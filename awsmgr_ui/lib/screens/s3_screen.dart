@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/loading_animation.dart';
 import '../theme/app_theme.dart';
@@ -542,6 +544,7 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
   List<S3Object> _objects = [];
   String _versioningStatus = 'Loading...';
   bool _loading = false;
+  String? _downloadingKey;
 
   @override
   void initState() {
@@ -610,6 +613,53 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.successGreen,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _downloadObject(S3Object object) async {
+    setState(() => _downloadingKey = object.key);
+    
+    try {
+      final bytes = await ApiService.downloadS3Object(widget.bucketName, object.key);
+      
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+      
+      if (directory == null) {
+        throw Exception('Could not access downloads folder');
+      }
+      
+      final fileName = object.key.split('/').last;
+      final filePath = '${directory.path}/$fileName';
+      
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+      
+      _showSuccess('Downloaded: $fileName');
+    } catch (e) {
+      _showError('Failed to download: $e');
+    } finally {
+      setState(() => _downloadingKey = null);
+    }
   }
 
   @override
@@ -784,6 +834,24 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                                   ),
                                 ],
                               ),
+                              trailing: _downloadingKey == object.key
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : IconButton(
+                                      icon: const Icon(Icons.download),
+                                      color: AppTheme.primaryPurple,
+                                      tooltip: 'Download',
+                                      onPressed: () => _downloadObject(object),
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: AppTheme.primaryPurple.withOpacity(0.1),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
                             ),
                           );
                         },

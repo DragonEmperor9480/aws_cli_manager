@@ -118,6 +118,16 @@ class ApiService {
     throw Exception('Failed to get versioning status');
   }
 
+  static Future<List<int>> downloadS3Object(String bucketname, String objectkey) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/objects/$objectkey'),
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    }
+    throw Exception('Failed to download object');
+  }
+
   // Settings
   static Future<Map<String, dynamic>?> getMFADevice() async {
     final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
