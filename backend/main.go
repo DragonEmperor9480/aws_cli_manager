@@ -78,6 +78,10 @@ func main() {
 	r.HandleFunc("/api/settings/mfa", api.GetMFADevice).Methods("GET")
 	r.HandleFunc("/api/settings/mfa", api.SaveMFADevice).Methods("POST")
 
+	// AWS Configuration
+	r.HandleFunc("/api/aws/config", api.GetAWSConfig).Methods("GET")
+	r.HandleFunc("/api/aws/config", api.ConfigureAWS).Methods("POST")
+
 	// Health
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
