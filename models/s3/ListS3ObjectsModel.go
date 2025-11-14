@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func S3ListBucketObjects(bucketName string) {
+func S3ListBucketObjects(bucketName string) (string, error) {
 	client := utils.GetS3Client()
 	ctx := context.TODO()
 
@@ -24,16 +24,17 @@ func S3ListBucketObjects(bucketName string) {
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchBucket") {
 			views.PrintError("The specified bucket '" + bucketName + "' does not exist!")
+			return "", fmt.Errorf("the specified bucket '%s' does not exist", bucketName)
 		} else {
 			views.PrintError("Error fetching objects: " + err.Error())
+			return "", fmt.Errorf("error fetching objects: %v", err)
 		}
-		return
 	}
 
 	// Empty bucket
 	if len(result.Contents) == 0 {
 		views.PrintWarning("No objects found in bucket '" + bucketName + "'.")
-		return
+		return "No objects found in bucket '" + bucketName + "'.", nil
 	}
 
 	// Format output to match AWS CLI format
@@ -57,6 +58,6 @@ func S3ListBucketObjects(bucketName string) {
 		lines = append(lines, line)
 	}
 
-	// Send parsed lines to view
-	views.PrintS3Objects(lines)
+	// Return the data
+	return strings.Join(lines, "\n"), nil
 }
