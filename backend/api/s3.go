@@ -53,8 +53,13 @@ func ListS3Objects(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketname := vars["bucketname"]
 
-	s3.S3ListBucketObjects(bucketname)
-	respondJSON(w, http.StatusOK, map[string]string{"message": "Objects listed", "bucketname": bucketname})
+	objects, err := s3.S3ListBucketObjects(bucketname)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"objects": objects, "bucketname": bucketname})
 }
 
 // GetBucketVersioning gets bucket versioning status

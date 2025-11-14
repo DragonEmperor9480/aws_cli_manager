@@ -87,6 +87,26 @@ class ApiService {
     }
   }
 
+  static Future<void> deleteS3Bucket(String bucketname) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname'),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete bucket');
+    }
+  }
+
+  static Future<String> listS3Objects(String bucketname) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/objects'),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['objects'] ?? '';
+    }
+    throw Exception('Failed to load objects');
+  }
+
   // Settings
   static Future<Map<String, dynamic>?> getMFADevice() async {
     final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
