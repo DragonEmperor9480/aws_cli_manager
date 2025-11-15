@@ -111,17 +111,22 @@ class BackendService {
   }
 
   static String _getBackendPath() {
+    // Get the executable directory
+    final exePath = Platform.resolvedExecutable;
+    final exeDir = exePath.substring(0, exePath.lastIndexOf(Platform.pathSeparator));
+    
     if (Platform.isWindows) {
-      return '../backend/awsmgr_backend.exe';
+      return '$exeDir${Platform.pathSeparator}awsmgr_backend.exe';
     } else if (Platform.isMacOS) {
-      return '../backend/awsmgr_backend_macos';
+      return '$exeDir${Platform.pathSeparator}awsmgr_backend_macos';
     } else {
-      return '../backend/awsmgr_backend';
+      return '$exeDir${Platform.pathSeparator}awsmgr_backend';
     }
   }
 
   static String _getBackendDir() {
-    return '../backend';
+    final exePath = Platform.resolvedExecutable;
+    return exePath.substring(0, exePath.lastIndexOf(Platform.pathSeparator));
   }
 
   static Future<bool> isRunning() async {
