@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../services/aws_credentials_service.dart';
 import '../services/backend_service.dart';
 import 'credentials_setup_screen.dart';
@@ -15,11 +17,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _hasCredentials = false;
   bool _loading = true;
   String? _region;
+  String _version = 'Loading...';
+  String _osName = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _loadCredentialStatus();
+    _loadVersionInfo();
   }
 
   Future<void> _loadCredentialStatus() async {
@@ -39,6 +44,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('Error loading credentials: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${BackendService.baseUrl}/api/version'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _version = data['version'] ?? 'Unknown';
+          _osName = data['os_name'] ?? 'Unknown';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading version: $e');
+      setState(() {
+        _version = '1.0.0';
+        _osName = 'Unknown';
+      });
     }
   }
 
@@ -296,21 +323,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'AWS Manager',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Version 1.0.0',
-                      style: TextStyle(
+                      'Version $_version',
+                      style: const TextStyle(
                         fontSize: 13,
                         color: AppTheme.textSecondary,
                       ),
@@ -323,6 +350,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.computer, size: 16, color: AppTheme.textSecondary),
+              const SizedBox(width: 8),
+              Text(
+                _osName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             'Manage your AWS infrastructure with ease',
             style: TextStyle(
