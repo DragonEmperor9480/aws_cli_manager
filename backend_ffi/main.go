@@ -11,6 +11,7 @@ import (
 
 	"github.com/DragonEmperor9480/aws_cli_manager/backend/api"
 	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -64,6 +65,14 @@ func SetAWSCredentials(accessKey, secretKey, region *C.char) int {
 	os.Setenv("AWS_REGION", regionStr)
 
 	log.Printf("AWS credentials set for region: %s", regionStr)
+
+	// Initialize AWS SDK clients with the new credentials
+	if err := utils.InitAWSClients(); err != nil {
+		log.Printf("Error initializing AWS clients: %v", err)
+		return 1
+	}
+
+	log.Printf("AWS SDK clients initialized successfully")
 	return 0
 }
 
