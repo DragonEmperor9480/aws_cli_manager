@@ -154,8 +154,11 @@ class ApiService {
     final response = await http.get(uri);
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final items = data['items'] as List;
-      return items.map((item) => S3Item.fromJson(item)).toList();
+      final items = data['items'];
+      if (items == null) {
+        return [];
+      }
+      return (items as List).map((item) => S3Item.fromJson(item)).toList();
     }
     throw Exception('Failed to load items');
   }

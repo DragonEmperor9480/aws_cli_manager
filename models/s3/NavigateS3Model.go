@@ -33,7 +33,7 @@ func ListS3ItemsWithPrefix(bucketName, prefix string) ([]S3Item, error) {
 		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
 
-	var items []S3Item
+	items := make([]S3Item, 0)
 
 	// Add folders (common prefixes)
 	for _, commonPrefix := range result.CommonPrefixes {

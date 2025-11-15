@@ -122,15 +122,101 @@ class S3Item {
   }
 }
 
+enum SortOption { nameAsc, nameDesc, sizeAsc, sizeDesc, dateAsc, dateDesc }
+
 class _S3BrowserScreenState extends State<S3BrowserScreen> {
   List<S3Item> _items = [];
+  List<S3Item> _filteredItems = [];
   String _currentPrefix = '';
   bool _loading = false;
+  String _searchQuery = '';
+  SortOption _sortOption = SortOption.nameAsc;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadItems();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> get _breadcrumbs {
+    if (_currentPrefix.isEmpty) return [];
+    final parts = _currentPrefix.split('/').where((p) => p.isNotEmpty).toList();
+    return parts;
+  }
+
+  void _navigateToBreadcrumb(int index) {
+    final parts = _breadcrumbs;
+    if (index < 0 || index >= parts.length) return;
+    
+    final newPath = parts.sublist(0, index + 1).join('/') + '/';
+    setState(() => _currentPrefix = newPath);
+    _loadItems();
+  }
+
+  void _filterAndSortItems() {
+    List<S3Item> filtered = _items;
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((item) {
+        return item.displayName.toLowerCase().contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    // Apply sorting
+    switch (_sortOption) {
+      case SortOption.nameAsc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+        });
+        break;
+      case SortOption.nameDesc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return b.displayName.toLowerCase().compareTo(a.displayName.toLowerCase());
+        });
+        break;
+      case SortOption.sizeAsc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.size.compareTo(b.size);
+        });
+        break;
+      case SortOption.sizeDesc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return b.size.compareTo(a.size);
+        });
+        break;
+      case SortOption.dateAsc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.lastModified.compareTo(b.lastModified);
+        });
+        break;
+      case SortOption.dateDesc:
+        filtered.sort((a, b) {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return b.lastModified.compareTo(a.lastModified);
+        });
+        break;
+    }
+
+    setState(() => _filteredItems = filtered);
   }
 
   Future<void> _loadItems() async {
@@ -140,7 +226,12 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
         widget.bucketName,
         _currentPrefix,
       );
-      setState(() => _items = items);
+      setState(() {
+        _items = items;
+        _searchQuery = '';
+        _searchController.clear();
+      });
+      _filterAndSortItems();
     } catch (e) {
       _showError('Failed to load items: $e');
     } finally {
@@ -441,22 +532,96 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
     }
   }
 
+  Widget _buildBreadcrumbs() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() => _currentPrefix = '');
+              _loadItems();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _currentPrefix.isEmpty 
+                    ? AppTheme.s3Color.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.home,
+                    size: 16,
+                    color: _currentPrefix.isEmpty 
+                        ? AppTheme.s3Color 
+                        : Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.bucketName,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: _currentPrefix.isEmpty 
+                          ? FontWeight.bold 
+                          : FontWeight.normal,
+                      color: _currentPrefix.isEmpty 
+                          ? AppTheme.s3Color 
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_breadcrumbs.isNotEmpty) ...[
+            for (int i = 0; i < _breadcrumbs.length; i++) ...[
+              Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
+              InkWell(
+                onTap: () => _navigateToBreadcrumb(i),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: i == _breadcrumbs.length - 1
+                        ? AppTheme.s3Color.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _breadcrumbs[i],
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: i == _breadcrumbs.length - 1
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: i == _breadcrumbs.length - 1
+                          ? AppTheme.s3Color
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: AppTheme.backgroundLight,
         appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.bucketName),
-              if (_currentPrefix.isNotEmpty)
-                Text(
-                  '/$_currentPrefix',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-                ),
-            ],
-          ),
+          title: Text(widget.bucketName),
           elevation: 0,
           backgroundColor: Colors.white,
           actions: [
@@ -475,68 +640,268 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
         ),
         body: Column(
           children: [
+            if (_currentPrefix.isNotEmpty || _breadcrumbs.isNotEmpty)
+              _buildBreadcrumbs(),
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: AppTheme.s3Color.withOpacity(0.1),
+                color: AppTheme.s3Color.withValues(alpha: 0.1),
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.s3Color.withOpacity(0.2)),
+                  bottom: BorderSide(color: AppTheme.s3Color.withValues(alpha: 0.2)),
                 ),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.s3Color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.folder_open, color: AppTheme.s3Color),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'S3 Browser',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.s3Color.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.folder_open, color: AppTheme.s3Color),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'S3 Browser',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${_filteredItems.length} items${_searchQuery.isNotEmpty ? " (filtered from ${_items.length})" : ""}',
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _uploadFile,
+                        icon: const Icon(Icons.upload_file, size: 18),
+                        label: const Text('Upload'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        Text(
-                          '${_items.length} items',
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 14,
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _createFolder,
+                        icon: const Icon(Icons.create_new_folder, size: 18),
+                        label: const Text('Folder'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _uploadFile,
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: const Text('Upload'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _createFolder,
-                    icon: const Icon(Icons.create_new_folder, size: 18),
-                    label: const Text('Folder'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search files and folders...',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 20),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                      _filterAndSortItems();
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() => _searchQuery = value);
+                            _filterAndSortItems();
+                          },
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton<SortOption>(
+                        icon: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.sort, size: 20),
+                        ),
+                        tooltip: 'Sort by',
+                        onSelected: (option) {
+                          setState(() => _sortOption = option);
+                          _filterAndSortItems();
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: SortOption.nameAsc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.sort_by_alpha,
+                                  size: 18,
+                                  color: _sortOption == SortOption.nameAsc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Name (A-Z)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.nameAsc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: SortOption.nameDesc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.sort_by_alpha,
+                                  size: 18,
+                                  color: _sortOption == SortOption.nameDesc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Name (Z-A)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.nameDesc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: SortOption.sizeAsc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.arrow_upward,
+                                  size: 18,
+                                  color: _sortOption == SortOption.sizeAsc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Size (Smallest)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.sizeAsc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: SortOption.sizeDesc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.arrow_downward,
+                                  size: 18,
+                                  color: _sortOption == SortOption.sizeDesc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Size (Largest)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.sizeDesc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: SortOption.dateDesc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 18,
+                                  color: _sortOption == SortOption.dateDesc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Date (Newest)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.dateDesc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: SortOption.dateAsc,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 18,
+                                  color: _sortOption == SortOption.dateAsc
+                                      ? AppTheme.primaryPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Date (Oldest)',
+                                  style: TextStyle(
+                                    fontWeight: _sortOption == SortOption.dateAsc
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -544,16 +909,23 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
             Expanded(
               child: _loading
                   ? const LoadingAnimation(message: 'Loading items...')
-                  : _items.isEmpty
+                  : _filteredItems.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.folder_open_outlined,
-                                  size: 80, color: Colors.grey[300]),
+                              Icon(
+                                _searchQuery.isNotEmpty 
+                                    ? Icons.search_off 
+                                    : Icons.folder_open_outlined,
+                                size: 80, 
+                                color: Colors.grey[300],
+                              ),
                               const SizedBox(height: 16),
                               Text(
-                                'No items found',
+                                _searchQuery.isNotEmpty 
+                                    ? 'No matching items' 
+                                    : 'No items found',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.grey[600],
@@ -561,7 +933,9 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Upload files or create folders',
+                                _searchQuery.isNotEmpty 
+                                    ? 'Try a different search term' 
+                                    : 'Upload files or create folders',
                                 style: TextStyle(color: Colors.grey[500]),
                               ),
                             ],
@@ -569,9 +943,9 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
-                          itemCount: _items.length,
+                          itemCount: _filteredItems.length,
                           itemBuilder: (context, index) {
-                            final item = _items[index];
+                            final item = _filteredItems[index];
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: 2,
@@ -591,7 +965,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                                         width: 50,
                                         height: 50,
                                         decoration: BoxDecoration(
-                                          color: item.iconColor.withOpacity(0.1),
+                                          color: item.iconColor.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Icon(
@@ -655,7 +1029,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                                           onPressed: () => _downloadFile(item),
                                           style: IconButton.styleFrom(
                                             backgroundColor:
-                                                AppTheme.primaryPurple.withOpacity(0.1),
+                                                AppTheme.primaryPurple.withValues(alpha: 0.1),
                                             shape: RoundedRectangleBorder(
                                               borderRadius: BorderRadius.circular(8),
                                             ),
@@ -670,7 +1044,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                                         onPressed: () => _deleteItem(item),
                                         style: IconButton.styleFrom(
                                           backgroundColor:
-                                              AppTheme.errorRed.withOpacity(0.1),
+                                              AppTheme.errorRed.withValues(alpha: 0.1),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
