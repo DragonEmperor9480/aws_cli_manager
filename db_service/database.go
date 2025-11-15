@@ -11,15 +11,29 @@ import (
 )
 
 var DB *gorm.DB
+var dataDir string
+
+// SetDataDirectory sets the directory for database storage (for mobile platforms)
+func SetDataDirectory(dir string) {
+	dataDir = dir
+}
 
 // InitDB initializes the database connection
 func InitDB() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
+	var dbPath string
+	var err error
 
-	dbPath := filepath.Join(homeDir, ".awsmgr", "awsmgr_data.db")
+	if dataDir != "" {
+		// Use provided data directory (for mobile)
+		dbPath = filepath.Join(dataDir, "awsmgr_data.db")
+	} else {
+		// Use home directory (for desktop)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		dbPath = filepath.Join(homeDir, ".awsmgr", "awsmgr_data.db")
+	}
 
 	// Create directory if it doesn't exist
 	os.MkdirAll(filepath.Dir(dbPath), 0700)
