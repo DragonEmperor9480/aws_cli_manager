@@ -48,13 +48,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       color: AppTheme.cloudwatchColor,
       route: '/cloudwatch',
     ),
-    ServiceInfo(
-      title: 'Settings',
-      description: 'Configuration',
-      icon: Icons.settings_outlined,
-      color: AppTheme.settingsColor,
-      route: '/settings',
-    ),
   ];
 
   final List<ServiceInfo> _additionalServices = [
@@ -201,6 +194,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             pinned: true,
             backgroundColor: Colors.white,
             elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => _navigateToService('/settings', false),
+                tooltip: 'Settings',
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
