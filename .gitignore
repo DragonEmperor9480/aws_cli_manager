@@ -1,3 +1,37 @@
 !.gitignore
 out/*
+
+# Compiled Go binaries
 *.exe
+backend/awsmgr_backend
+backend/awsmgr_backend_linux
+backend/awsmgr_backend_macos
+backend/awsmgr_backend_arm64
+backend/main
+
+# Go shared libraries
+*.so
+*.dll
+*.dylib
+*.h
+backend_ffi/libbackend.so
+backend_ffi/libbackend.h
+backend_ffi/libbackend.dll
+backend_ffi/backend.dll
+
+# Flutter Android native libraries
+awsmgr_ui/android/app/src/main/jniLibs/
+
+# Flutter build outputs
+awsmgr_ui/build/
+awsmgr_ui/.dart_tool/
+awsmgr_ui/.flutter-plugins
+awsmgr_ui/.flutter-plugins-dependencies
+awsmgr_ui/.packages
+awsmgr_ui/pubspec.lock
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+.awsmgr/
