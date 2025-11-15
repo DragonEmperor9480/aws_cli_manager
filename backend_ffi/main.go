@@ -152,6 +152,9 @@ func StartBackend() int {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}).Methods("GET")
 
+	// Version
+	r.HandleFunc("/api/version", api.GetVersion).Methods("GET")
+
 	server = &http.Server{
 		Addr:         "127.0.0.1:8080",
 		Handler:      corsMiddleware(r),

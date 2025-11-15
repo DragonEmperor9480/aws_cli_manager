@@ -99,6 +99,9 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}).Methods("GET")
 
+	// Version
+	r.HandleFunc("/api/version", api.GetVersion).Methods("GET")
+
 	log.Println("Server running on http://127.0.0.1:8080")
 	if err := http.ListenAndServe("127.0.0.1:8080", corsMiddleware(r)); err != nil {
 		log.Fatal("Server error:", err)
