@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/aws_credentials_service.dart';
+import '../services/backend_service.dart';
+import 'credentials_setup_screen.dart';
+import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -9,113 +12,326 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _deviceNameController = TextEditingController();
-  final _deviceArnController = TextEditingController();
-  bool _loading = false;
+  bool _hasCredentials = false;
+  bool _loading = true;
+  String? _region;
 
   @override
   void initState() {
     super.initState();
-    _loadMFADevice();
+    _loadCredentialStatus();
   }
 
-  Future<void> _loadMFADevice() async {
+  Future<void> _loadCredentialStatus() async {
     setState(() => _loading = true);
     try {
-      final device = await ApiService.getMFADevice();
-      if (device != null) {
-        _deviceNameController.text = device['device_name'] ?? '';
-        _deviceArnController.text = device['device_arn'] ?? '';
+      final hasCredentials = await AWSCredentialsService.hasCredentials();
+      if (hasCredentials) {
+        final creds = await AWSCredentialsService.getCredentials();
+        setState(() {
+          _hasCredentials = true;
+          _region = creds['region'];
+        });
+      } else {
+        setState(() => _hasCredentials = false);
       }
     } catch (e) {
-      // No device configured yet
+      debugPrint('Error loading credentials: $e');
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  Future<void> _saveMFADevice() async {
-    if (_deviceNameController.text.isEmpty || _deviceArnController.text.isEmpty) {
-      _showError('Please fill in all fields');
-      return;
-    }
-
-    try {
-      await ApiService.saveMFADevice(
-        _deviceNameController.text,
-        _deviceArnController.text,
-      );
-      _showSuccess('MFA device saved successfully');
-    } catch (e) {
-      _showError('Failed to save: $e');
+  Future<void> _updateCredentials() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CredentialsSetupScreen(),
+      ),
+    );
+    
+    if (result == true || mounted) {
+      _loadCredentialStatus();
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+  Future<void> _deleteCredentials() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Credentials'),
+        content: const Text(
+          'Are you sure you want to delete your AWS credentials? '
+          'You will need to re-enter them to use AWS services.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
-  }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
+    if (confirmed == true) {
+      try {
+        await AWSCredentialsService.deleteCredentials();
+        setState(() {
+          _hasCredentials = false;
+          _region = null;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Credentials deleted'),
+              backgroundColor: AppTheme.successGreen,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete credentials: $e'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Settings'),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          : ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                Text(
-                  'MFA Device Configuration',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _deviceNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Device Name',
-                    hintText: 'My Phone',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+                // AWS Credentials Section
+                _buildSectionHeader('AWS Credentials'),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _deviceArnController,
-                  decoration: const InputDecoration(
-                    labelText: 'Device ARN',
-                    hintText: 'arn:aws:iam::123456789012:mfa/user',
-                    border: OutlineInputBorder(),
+                _buildCredentialsCard(),
+                
+                const SizedBox(height: 32),
+                
+                // About Section
+                _buildSectionHeader('About'),
+                const SizedBox(height: 16),
+                _buildAboutCard(),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: AppTheme.textPrimary,
+      ),
+    );
+  }
+
+  Widget _buildCredentialsCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _hasCredentials
+                      ? AppTheme.successGreen.withValues(alpha: 0.1)
+                      : AppTheme.warningAmber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _hasCredentials ? Icons.check_circle : Icons.warning_amber,
+                  color: _hasCredentials
+                      ? AppTheme.successGreen
+                      : AppTheme.warningAmber,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _hasCredentials ? 'Credentials Configured' : 'No Credentials',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _hasCredentials
+                          ? 'Region: ${_region ?? 'Unknown'}'
+                          : 'Configure your AWS credentials',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_hasCredentials) ...[
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _updateCredentials,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Update'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryPurple,
+                      side: BorderSide(color: AppTheme.primaryPurple),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _saveMFADevice,
-                    child: const Text('Save MFA Device'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _deleteCredentials,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorRed,
+                      side: BorderSide(color: AppTheme.errorRed),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
+          ] else ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _updateCredentials,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Credentials'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
-  @override
-  void dispose() {
-    _deviceNameController.dispose();
-    _deviceArnController.dispose();
-    super.dispose();
+  Widget _buildAboutCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.primaryPurple, AppTheme.primaryBlue],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.info_outline,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AWS Manager',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Version 1.0.0',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text(
+            'Manage your AWS infrastructure with ease',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

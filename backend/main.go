@@ -35,9 +35,12 @@ func main() {
 		log.Fatal("Error initializing database:", err)
 	}
 
-	// Initialize AWS SDK clients
+	// Try to initialize AWS SDK clients (don't fail if credentials not available)
 	if err := utils.InitAWSClients(); err != nil {
-		log.Fatal("Error initializing AWS clients:", err)
+		log.Printf("Warning: AWS clients not initialized: %v", err)
+		log.Println("AWS credentials will be loaded from ~/.aws/credentials or environment variables")
+	} else {
+		log.Println("AWS clients initialized successfully")
 	}
 
 	r := mux.NewRouter()
@@ -96,6 +99,8 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}).Methods("GET")
 
-	log.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
+	log.Println("Server running on http://127.0.0.1:8080")
+	if err := http.ListenAndServe("127.0.0.1:8080", corsMiddleware(r)); err != nil {
+		log.Fatal("Server error:", err)
+	}
 }

@@ -18,8 +18,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showAllServices = false;
-  bool _awsConfigured = true;
-  bool _checkingCredentials = true;
   late AnimationController _fadeController;
   late AnimationController _shimmerController;
   late AnimationController _pulseController;
@@ -97,7 +95,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _checkAWSCredentials();
     
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -126,21 +123,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     )..repeat();
     _rotateAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(_rotateController);
-  }
-
-  Future<void> _checkAWSCredentials() async {
-    try {
-      final config = await ApiService.getAWSConfig();
-      setState(() {
-        _awsConfigured = config['configured'] == true;
-        _checkingCredentials = false;
-      });
-    } catch (e) {
-      setState(() {
-        _awsConfigured = false;
-        _checkingCredentials = false;
-      });
-    }
   }
 
   @override
@@ -391,105 +373,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  if (!_checkingCredentials)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: _awsConfigured
-                              ? [
-                                  AppTheme.successGreen.withOpacity(0.1),
-                                  AppTheme.primaryBlue.withOpacity(0.1),
-                                ]
-                              : [
-                                  AppTheme.warningAmber.withOpacity(0.1),
-                                  AppTheme.errorRed.withOpacity(0.1),
-                                ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _awsConfigured
-                              ? AppTheme.successGreen.withOpacity(0.3)
-                              : AppTheme.warningAmber.withOpacity(0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: _awsConfigured
-                                  ? AppTheme.successGreen.withOpacity(0.2)
-                                  : AppTheme.warningAmber.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              _awsConfigured
-                                  ? Icons.check_circle_outline
-                                  : Icons.warning_amber_rounded,
-                              color: _awsConfigured
-                                  ? AppTheme.successGreen
-                                  : AppTheme.warningAmber,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _awsConfigured
-                                      ? 'AWS Credentials Configured'
-                                      : 'AWS Credentials Not Configured',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _awsConfigured
-                                      ? 'Your AWS credentials are active and ready'
-                                      : 'Configure your AWS credentials to access services',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await showDialog<bool>(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => const AWSConfigDialog(),
-                              );
-                              if (result == true) {
-                                _checkAWSCredentials();
-                              }
-                            },
-                            icon: Icon(
-                              _awsConfigured ? Icons.edit : Icons.settings,
-                              size: 18,
-                            ),
-                            label: Text(_awsConfigured ? 'Reconfigure' : 'Configure'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _awsConfigured
-                                  ? AppTheme.primaryPurple
-                                  : AppTheme.warningAmber,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final crossAxisCount = constraints.maxWidth > 900
