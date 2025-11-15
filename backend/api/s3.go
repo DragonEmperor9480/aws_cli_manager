@@ -219,13 +219,23 @@ func ListS3ObjectsWithPrefix(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UploadS3Object uploads a file to S3
+// UploadS3Object uploads a file to S3 with streaming progress
 func UploadS3Object(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketname := vars["bucketname"]
 
-	// Parse multipart form (max 100MB)
-	err := r.ParseMultipartForm(100 << 20)
+	// Set headers for streaming response
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		respondError(w, http.StatusInternalServerError, "Streaming not supported")
+		return
+	}
+
+	// Parse multipart form (max 500MB)
+	err := r.ParseMultipartForm(500 << 20)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "Failed to parse form: "+err.Error())
 		return
@@ -243,6 +253,8 @@ func UploadS3Object(w http.ResponseWriter, r *http.Request) {
 		objectKey = header.Filename
 	}
 
+	fileSize := header.Size
+
 	// Save to temp file
 	tempFile := "/tmp/" + header.Filename
 	outFile, err := os.Create(tempFile)
@@ -253,24 +265,40 @@ func UploadS3Object(w http.ResponseWriter, r *http.Request) {
 	defer outFile.Close()
 	defer os.Remove(tempFile)
 
+	// Copy file to temp location (this is fast for localhost)
 	_, err = io.Copy(outFile, file)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to save file: "+err.Error())
 		return
 	}
 
-	// Upload to S3
-	err = s3.UploadS3Object(bucketname, objectKey, tempFile)
+	// Start the response with initial progress
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "{\"progress\":0,\"total\":%d}", fileSize)
+	flusher.Flush()
+
+	// Upload to S3 with progress tracking
+	progressSent := int64(0)
+	err = s3.UploadS3ObjectWithProgress(bucketname, objectKey, tempFile, func(current, total int64) {
+		// Only send progress updates every 5% to avoid flooding
+		if current-progressSent > total/20 || current == total {
+			progressSent = current
+			fmt.Fprintf(w, "\n{\"progress\":%d,\"total\":%d}", current, total)
+			flusher.Flush()
+			// Small delay to make progress visible
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to upload to S3: "+err.Error())
+		fmt.Fprintf(w, "\n{\"error\":\"Failed to upload to S3: %s\"}", err.Error())
+		flusher.Flush()
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{
-		"message":    "File uploaded successfully",
-		"bucketname": bucketname,
-		"key":        objectKey,
-	})
+	// Send completion
+	fmt.Fprintf(w, "\n{\"progress\":%d,\"total\":%d,\"complete\":true,\"message\":\"Upload successful\"}", fileSize, fileSize)
+	flusher.Flush()
 }
 
 // DeleteS3Object deletes an object from S3

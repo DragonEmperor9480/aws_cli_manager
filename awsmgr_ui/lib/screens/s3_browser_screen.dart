@@ -293,6 +293,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
   }
 
   Future<void> _uploadFile() async {
+    StreamController<double>? progressController;
     try {
       final result = await FilePicker.platform.pickFiles();
       if (result == null) return;
@@ -302,7 +303,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
       final fileSize = await file.length();
 
       // Create progress stream controller
-      final progressController = StreamController<double>();
+      progressController = StreamController<double>.broadcast();
 
       // Show animated progress dialog with real progress
       showDialog(
@@ -311,23 +312,42 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
         builder: (context) => AnimatedProgressDialog(
           title: 'Uploading File',
           message: '$fileName (${_formatBytes(fileSize)})',
-          progressStream: progressController.stream,
+          progressStream: progressController!.stream,
         ),
       );
 
+      // Small delay to ensure dialog is ready
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // Initialize progress
+      if (!progressController.isClosed) {
+        progressController.add(0.0);
+      }
+
+      // Track real-time progress from backend
       await S3Service.uploadWithProgress(
         widget.bucketName,
         _currentPrefix + fileName,
         file,
         (sent, total) {
-          if (total > 0) {
-            progressController.add(sent / total);
+          if (total > 0 && !progressController!.isClosed) {
+            final progress = sent / total;
+            progressController.add(progress);
+            print('Upload progress: ${(progress * 100).toStringAsFixed(1)}%');
           }
         },
       );
 
+      // Ensure we reach 100%
+      if (!progressController.isClosed) {
+        progressController.add(1.0);
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
       // Close progress stream
-      await progressController.close();
+      if (!progressController.isClosed) {
+        await progressController.close();
+      }
 
       // Hide progress dialog
       if (mounted) Navigator.of(context).pop();
@@ -335,6 +355,10 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
       _showSuccess('Uploaded: $fileName');
       await _loadItems();
     } catch (e) {
+      // Close progress stream if open
+      if (progressController != null && !progressController.isClosed) {
+        await progressController.close();
+      }
       // Hide progress dialog if showing
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
       _showError('Upload failed: $e');
