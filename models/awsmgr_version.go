@@ -12,7 +12,7 @@ const Version = "PRE RELEASE EDITION"
 // VersionInfo holds version and OS information
 type VersionInfo struct {
 	Version string `json:"version"`
-	OS      string `json:"os"`
+	OS      string `json:"-"` // Hidden from JSON, used for backend logic
 	OSName  string `json:"os_name"`
 }
 
