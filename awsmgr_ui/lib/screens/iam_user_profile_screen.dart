@@ -113,13 +113,13 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'IAM User',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 12,
                             ),
                           ),
@@ -171,11 +171,10 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
                           )
                         else
                           _buildInfoCard(
-                            _groups.map((group) {
+                            _groups.map<Widget>((group) {
                               return _buildListItem(
                                 Icons.group,
-                                group['groupname'] ?? '',
-                                subtitle: group['group_id'],
+                                group.toString(),
                               );
                             }).toList(),
                           ),
@@ -194,7 +193,7 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
                           )
                         else
                           _buildInfoCard(
-                            (_dependencies!['access_keys'] as List).map((key) {
+                            (_dependencies!['access_keys'] as List).map<Widget>((key) {
                               return _buildListItem(
                                 Icons.vpn_key,
                                 key.toString(),
@@ -216,7 +215,7 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
                           )
                         else
                           _buildInfoCard(
-                            (_dependencies!['managed_policies'] as List).map((policy) {
+                            (_dependencies!['managed_policies'] as List).map<Widget>((policy) {
                               return _buildListItem(
                                 Icons.policy,
                                 policy.toString(),
@@ -238,7 +237,7 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
                           )
                         else
                           _buildInfoCard(
-                            (_dependencies!['inline_policies'] as List).map((policy) {
+                            (_dependencies!['inline_policies'] as List).map<Widget>((policy) {
                               return _buildListItem(
                                 Icons.description,
                                 policy.toString(),
