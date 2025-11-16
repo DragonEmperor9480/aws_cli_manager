@@ -194,6 +194,42 @@ class ApiService {
     }
   }
 
+  // MFA Device Configuration
+  static Future<Map<String, dynamic>> getMFADevice() async {
+    final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to get MFA device');
+  }
+
+  static Future<void> saveMFADevice({
+    required String deviceName,
+    required String deviceArn,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/settings/mfa'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'device_name': deviceName,
+        'device_arn': deviceArn,
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to save MFA device');
+    }
+  }
+
+  static Future<void> deleteMFADevice() async {
+    final response = await http.delete(Uri.parse('$baseUrl/settings/mfa'));
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete MFA device');
+    }
+  }
+
   static Future<void> deleteIAMUser(String username, {bool force = false}) async {
     final url = force 
         ? '$baseUrl/iam/users/$username?force=true'
@@ -394,29 +430,6 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to create folder');
-    }
-  }
-
-  // Settings
-  static Future<Map<String, dynamic>?> getMFADevice() async {
-    final response = await http.get(Uri.parse('$baseUrl/settings/mfa'));
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    }
-    return null;
-  }
-
-  static Future<void> saveMFADevice(String deviceName, String deviceArn) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/settings/mfa'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'device_name': deviceName,
-        'device_arn': deviceArn,
-      }),
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to save MFA device');
     }
   }
 

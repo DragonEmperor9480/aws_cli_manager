@@ -4,8 +4,10 @@ import 'package:http/http.dart' as http;
 import '../services/aws_credentials_service.dart';
 import '../services/email_config_service.dart';
 import '../services/backend_service.dart';
+import '../services/api_service.dart';
 import 'credentials_setup_screen.dart';
 import '../widgets/email_config_dialog.dart';
+import '../widgets/mfa_device_dialog.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,9 +20,11 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _hasCredentials = false;
   bool _hasEmailConfig = false;
+  bool _hasMFADevice = false;
   bool _loading = true;
   String? _region;
   String? _senderEmail;
+  String? _mfaDeviceName;
   String _version = 'Loading...';
   String _osName = 'Loading...';
 
@@ -29,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadCredentialStatus();
     _loadEmailConfigStatus();
+    _loadMFADeviceStatus();
     _loadVersionInfo();
   }
 
@@ -66,6 +71,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       debugPrint('Error loading email config: $e');
+    }
+  }
+
+  Future<void> _loadMFADeviceStatus() async {
+    try {
+      final device = await ApiService.getMFADevice();
+      if (device['configured'] == true) {
+        setState(() {
+          _hasMFADevice = true;
+          _mfaDeviceName = device['device_name'];
+        });
+      } else {
+        setState(() => _hasMFADevice = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading MFA device: $e');
+      setState(() => _hasMFADevice = false);
     }
   }
 
@@ -227,6 +249,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _configureMFADevice() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const MFADeviceDialog(),
+    );
+    
+    if (result == true) {
+      _loadMFADeviceStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ MFA device saved'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMFADevice() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete MFA Device'),
+        content: const Text(
+          'Are you sure you want to delete your MFA device configuration? '
+          'You will need to re-enter it for MFA operations.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteMFADevice();
+        setState(() {
+          _hasMFADevice = false;
+          _mfaDeviceName = null;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ MFA device deleted'),
+              backgroundColor: AppTheme.successGreen,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete MFA device: $e'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -252,6 +345,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSectionHeader('Email Configuration'),
                 const SizedBox(height: 16),
                 _buildEmailConfigCard(),
+                
+                const SizedBox(height: 32),
+                
+                // MFA Device Section
+                _buildSectionHeader('MFA Device'),
+                const SizedBox(height: 16),
+                _buildMFADeviceCard(),
                 
                 const SizedBox(height: 32),
                 
@@ -496,6 +596,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMFADeviceCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _hasMFADevice
+                      ? AppTheme.successGreen.withValues(alpha: 0.1)
+                      : AppTheme.warningAmber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _hasMFADevice ? Icons.security : Icons.security_outlined,
+                  color: _hasMFADevice
+                      ? AppTheme.successGreen
+                      : AppTheme.warningAmber,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _hasMFADevice ? 'MFA Device Configured' : 'No MFA Device',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _hasMFADevice
+                          ? 'Device: ${_mfaDeviceName ?? 'Unknown'}'
+                          : 'Configure MFA for S3 operations',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _configureMFADevice,
+                icon: Icon(_hasMFADevice ? Icons.edit : Icons.add, size: 18),
+                label: Text(_hasMFADevice ? 'Update' : 'Configure'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          if (_hasMFADevice) ...[
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _deleteMFADevice,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorRed,
+                      side: BorderSide(color: AppTheme.errorRed.withValues(alpha: 0.5)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],

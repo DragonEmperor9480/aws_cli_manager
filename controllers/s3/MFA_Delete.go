@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	s3model "github.com/DragonEmperor9480/aws_cli_manager/models/s3"
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
@@ -41,10 +41,10 @@ func S3BucketMFADeleteController() {
 		return
 	}
 
-	// Get MFA device from database
-	device, err := db_service.GetMFADevice()
+	// Get MFA device from config
+	device, err := service.LoadMFADevice()
 	if err != nil {
-		fmt.Println(utils.Red + "Error: No MFA device found in database." + utils.Reset)
+		fmt.Println(utils.Red + "Error: No MFA device configured." + utils.Reset)
 		fmt.Println(utils.Yellow + "Please add an MFA device in Settings (press X from main menu)." + utils.Reset)
 		return
 	}

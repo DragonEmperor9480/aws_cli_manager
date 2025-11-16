@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 )
 
@@ -49,7 +49,7 @@ func viewMFADevice() {
 	fmt.Println(utils.Bold + utils.Cyan + "Current MFA Device:" + utils.Reset)
 	fmt.Println("────────────────────────────────────")
 
-	device, err := db_service.GetMFADevice()
+	device, err := service.LoadMFADevice()
 	if err != nil {
 		fmt.Println(utils.Yellow + "No MFA device configured." + utils.Reset)
 		fmt.Println(utils.Cyan + "Use option 2 to add your MFA device." + utils.Reset)
@@ -66,7 +66,7 @@ func updateMFADevice(reader *bufio.Reader) {
 	fmt.Println("────────────────────────────────────")
 
 	// Check if device exists
-	existingDevice, _ := db_service.GetMFADevice()
+	existingDevice, _ := service.LoadMFADevice()
 	if existingDevice != nil {
 		fmt.Printf("%sCurrent Device:%s %s\n", utils.Bold, utils.Reset, existingDevice.DeviceName)
 		fmt.Printf("%sCurrent ARN:%s    %s\n\n", utils.Bold, utils.Reset, existingDevice.DeviceARN)
@@ -90,7 +90,7 @@ func updateMFADevice(reader *bufio.Reader) {
 		return
 	}
 
-	err := db_service.SaveMFADevice(deviceName, deviceARN)
+	err := service.SaveMFADevice(deviceName, deviceARN)
 	if err != nil {
 		fmt.Println(utils.Red + "Error saving MFA device: " + err.Error() + utils.Reset)
 		return

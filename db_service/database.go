@@ -77,7 +77,7 @@ func InitDB() error {
 	}
 
 	// Auto-migrate schema
-	err = DB.AutoMigrate(&UserCredential{}, &MFADevice{})
+	err = DB.AutoMigrate(&UserCredential{})
 	if err != nil {
 		return err
 	}

@@ -98,6 +98,7 @@ func main() {
 	// Settings
 	r.HandleFunc("/api/settings/mfa", api.GetMFADevice).Methods("GET")
 	r.HandleFunc("/api/settings/mfa", api.SaveMFADevice).Methods("POST")
+	r.HandleFunc("/api/settings/mfa", api.DeleteMFADevice).Methods("DELETE")
 
 	// AWS Configuration
 	r.HandleFunc("/api/aws/config", api.GetAWSConfig).Methods("GET")

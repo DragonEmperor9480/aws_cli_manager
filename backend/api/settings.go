@@ -4,18 +4,22 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
 )
 
 // GetMFADevice gets the stored MFA device
 func GetMFADevice(w http.ResponseWriter, r *http.Request) {
-	device, err := db_service.GetMFADevice()
+	device, err := service.LoadMFADevice()
 	if err != nil {
-		respondError(w, http.StatusNotFound, "No MFA device configured")
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"configured": false,
+			"message":    "No MFA device configured",
+		})
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"configured":  true,
 		"device_name": device.DeviceName,
 		"device_arn":  device.DeviceARN,
 	})
@@ -38,11 +42,22 @@ func SaveMFADevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := db_service.SaveMFADevice(req.DeviceName, req.DeviceARN)
+	err := service.SaveMFADevice(req.DeviceName, req.DeviceARN)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "MFA device saved"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": "MFA device saved successfully"})
+}
+
+// DeleteMFADevice deletes the MFA device configuration
+func DeleteMFADevice(w http.ResponseWriter, r *http.Request) {
+	err := service.DeleteMFADevice()
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "MFA device deleted successfully"})
 }
