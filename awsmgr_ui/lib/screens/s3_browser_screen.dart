@@ -262,6 +262,118 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
     }
   }
 
+  Future<void> _toggleVersioning(bool value) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              value ? Icons.history : Icons.warning,
+              color: value ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 12),
+            Text(value ? 'Enable Versioning?' : 'Disable Versioning?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value
+                  ? 'Enabling versioning will:'
+                  : 'Disabling versioning will:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            if (value) ...[
+              const Text('• Keep multiple versions of objects'),
+              const Text('• Allow recovery of deleted objects'),
+              const Text('• Enable MFA Delete protection'),
+              const Text('• May increase storage costs'),
+            ] else ...[
+              const Text('• Stop creating new object versions'),
+              const Text('• Existing versions will be kept'),
+              const Text('• Disable MFA Delete protection'),
+              const Text('• Cannot be fully reversed'),
+            ],
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: value ? Colors.blue.shade50 : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: value ? Colors.blue.shade200 : Colors.orange.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: value ? Colors.blue.shade700 : Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      value
+                          ? 'This is a recommended security practice for production buckets.'
+                          : 'This action cannot be fully undone. Proceed with caution.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: value ? Colors.blue.shade900 : Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: value ? Colors.green : Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(value ? 'Enable' : 'Disable'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _loadingVersioning = true);
+    try {
+      await ApiService.setBucketVersioning(
+        widget.bucketName,
+        value ? 'Enabled' : 'Suspended',
+      );
+      
+      setState(() => _versioningEnabled = value);
+      
+      // If disabling versioning, also disable MFA delete
+      if (!value && _mfaDeleteEnabled) {
+        setState(() => _mfaDeleteEnabled = false);
+      }
+      
+      _showSuccess('Versioning ${value ? 'enabled' : 'disabled'} successfully');
+    } catch (e) {
+      _showError('Failed to update versioning: $e');
+    } finally {
+      setState(() => _loadingVersioning = false);
+    }
+  }
+
   Future<void> _toggleMFADelete(bool value) async {
     if (!_versioningEnabled) {
       _showError('Versioning must be enabled before configuring MFA Delete');
@@ -781,126 +893,258 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
               ),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.s3Color.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.folder_open, color: AppTheme.s3Color),
+                  // Beautiful Bucket Header (Mobile-Friendly)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.s3Color.withValues(alpha: 0.1),
+                          AppTheme.s3Color.withValues(alpha: 0.05),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.s3Color.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Bucket Name Row
+                        Row(
                           children: [
-                            const Text(
-                              'S3 Browser',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.s3Color.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.storage,
+                                color: AppTheme.s3Color,
+                                size: 22,
                               ),
                             ),
-                            Text(
-                              '${_filteredItems.length} items${_searchQuery.isNotEmpty ? " (filtered from ${_items.length})" : ""}',
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.bucketName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${_filteredItems.length} items${_searchQuery.isNotEmpty ? " (filtered)" : ""}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _uploadFile,
-                        icon: const Icon(Icons.upload_file, size: 18),
-                        label: const Text('Upload'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                        const SizedBox(height: 12),
+                        // Action Buttons Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _uploadFile,
+                                icon: const Icon(Icons.upload_file, size: 16),
+                                label: const Text('Upload', style: TextStyle(fontSize: 13)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.s3Color,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _createFolder,
+                                icon: const Icon(Icons.create_new_folder, size: 16),
+                                label: const Text('Folder', style: TextStyle(fontSize: 13)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: AppTheme.s3Color,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: BorderSide(color: AppTheme.s3Color.withValues(alpha: 0.3)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: _createFolder,
-                        icon: const Icon(Icons.create_new_folder, size: 18),
-                        label: const Text('Folder'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // MFA Delete Toggle
-                  if (_currentPrefix.isEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _versioningEnabled 
-                              ? AppTheme.s3Color.withValues(alpha: 0.3)
-                              : Colors.grey.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.security,
-                            size: 20,
-                            color: _versioningEnabled ? AppTheme.s3Color : Colors.grey,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        if (_currentPrefix.isEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+                          // Versioning Card with Toggle
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _versioningEnabled
+                                    ? Colors.green.withValues(alpha: 0.3)
+                                    : Colors.grey.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  'MFA Delete',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _versioningEnabled ? Colors.black87 : Colors.grey,
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: _versioningEnabled
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.history,
+                                    size: 18,
+                                    color: _versioningEnabled ? Colors.green : Colors.grey,
                                   ),
                                 ),
-                                Text(
-                                  _versioningEnabled 
-                                      ? 'Require MFA to delete objects'
-                                      : 'Enable versioning first',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Versioning',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      Text(
+                                        _versioningEnabled ? 'Enabled' : 'Disabled',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: _versioningEnabled ? Colors.green : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+                                if (_loadingVersioning)
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                else
+                                  Switch(
+                                    value: _versioningEnabled,
+                                    onChanged: _toggleVersioning,
+                                    activeColor: Colors.green,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
                               ],
                             ),
                           ),
-                          if (_loadingVersioning)
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            Switch(
-                              value: _mfaDeleteEnabled,
-                              onChanged: _versioningEnabled ? _toggleMFADelete : null,
-                              activeColor: AppTheme.s3Color,
+                          const SizedBox(height: 8),
+                          // MFA Delete Card with Toggle
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _versioningEnabled
+                                    ? (_mfaDeleteEnabled
+                                        ? Colors.orange.withValues(alpha: 0.3)
+                                        : Colors.grey.withValues(alpha: 0.3))
+                                    : Colors.grey.withValues(alpha: 0.3),
+                              ),
                             ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: _versioningEnabled
+                                        ? (_mfaDeleteEnabled
+                                            ? Colors.orange.withValues(alpha: 0.1)
+                                            : Colors.grey.withValues(alpha: 0.1))
+                                        : Colors.grey.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.security,
+                                    size: 18,
+                                    color: _versioningEnabled
+                                        ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'MFA Delete',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      Text(
+                                        _versioningEnabled
+                                            ? (_mfaDeleteEnabled ? 'Enabled' : 'Disabled')
+                                            : 'Requires Versioning',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: _versioningEnabled
+                                              ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_loadingVersioning)
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                else
+                                  Switch(
+                                    value: _mfaDeleteEnabled,
+                                    onChanged: _versioningEnabled ? _toggleMFADelete : null,
+                                    activeColor: Colors.orange,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                              ],
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                  ],
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(

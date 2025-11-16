@@ -354,6 +354,19 @@ class ApiService {
     throw Exception('Failed to get versioning status');
   }
 
+  static Future<void> setBucketVersioning(String bucketname, String status) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/versioning'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'status': status}),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to update versioning');
+    }
+  }
+
   static Future<Map<String, dynamic>> getBucketMFADelete(String bucketname) async {
     final response = await http.get(
       Uri.parse('$baseUrl/s3/buckets/$bucketname/mfa-delete'),
