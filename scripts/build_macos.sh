@@ -7,11 +7,14 @@ echo "=========================================="
 echo "Building AWS Manager for macOS"
 echo "=========================================="
 
+# Change to project root
+cd "$(dirname "$0")/.."
+
 echo ""
 echo "Step 1: Building Go backend executable for macOS..."
-cd ../backend
+cd backend
 GOOS=darwin GOARCH=amd64 go build -o awsmgr_backend_macos main.go
-cd ../scripts
+cd ..
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to build Go backend"
@@ -23,7 +26,7 @@ echo "✓ Go backend compiled: backend/awsmgr_backend_macos"
 
 echo ""
 echo "Step 2: Building Flutter macOS app..."
-cd ../awsmgr_ui
+cd awsmgr_ui
 
 flutter clean
 flutter pub get

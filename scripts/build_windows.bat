@@ -5,13 +5,16 @@ echo ==========================================
 echo Building AWS Manager for Windows
 echo ==========================================
 
+REM Change to project root (parent of scripts directory)
+cd /d "%~dp0\.."
+
 echo.
 echo Step 1: Building Go backend executable...
-cd ..\backend
+cd backend
 set GOOS=windows
 set GOARCH=amd64
 go build -o awsmgr_backend.exe main.go
-cd ..\scripts
+cd ..
 
 if %errorlevel% neq 0 (
     echo Failed to build Go backend
@@ -22,7 +25,7 @@ echo Done: Go backend compiled: backend\awsmgr_backend.exe
 
 echo.
 echo Step 2: Building Flutter Windows app...
-cd ..\awsmgr_ui
+cd awsmgr_ui
 
 call flutter clean
 call flutter pub get
