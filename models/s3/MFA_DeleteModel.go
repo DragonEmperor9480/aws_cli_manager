@@ -28,7 +28,7 @@ func GetBucketVersioning(bucket string) string {
 }
 
 // Update MFA Delete config
-func UpdateBucketMFADelete(bucket, securityARN, mfaCode string, enable bool) {
+func UpdateBucketMFADelete(bucket, securityARN, mfaCode string, enable bool) error {
 	utils.ShowProcessingAnimation("Updating MFA Delete setting...")
 
 	client := utils.GetS3Client()
@@ -43,7 +43,14 @@ func UpdateBucketMFADelete(bucket, securityARN, mfaCode string, enable bool) {
 		mfaDelete = types.MFADeleteDisabled
 	}
 
+	// Format: "serial-number token-code" (space-separated)
 	mfaString := fmt.Sprintf("%s %s", securityARN, mfaCode)
+
+	// Debug logging
+	fmt.Printf("Debug - MFA String: %s\n", mfaString)
+	fmt.Printf("Debug - Device ARN: %s\n", securityARN)
+	fmt.Printf("Debug - MFA Code: %s (length: %d)\n", mfaCode, len(mfaCode))
+	fmt.Printf("Debug - Enable: %v\n", enable)
 
 	input := &s3.PutBucketVersioningInput{
 		Bucket: &bucket,
@@ -59,8 +66,10 @@ func UpdateBucketMFADelete(bucket, securityARN, mfaCode string, enable bool) {
 
 	if err != nil {
 		fmt.Println(utils.Red + "Failed to update MFA Delete:" + utils.Reset)
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(utils.Green + "MFA Delete successfully " + actionMsg + " for bucket '" + bucket + "'." + utils.Reset)
+		fmt.Printf("Error details: %v\n", err)
+		return fmt.Errorf("failed to update MFA delete: %v", err)
 	}
+
+	fmt.Println(utils.Green + "MFA Delete successfully " + actionMsg + " for bucket '" + bucket + "'." + utils.Reset)
+	return nil
 }

@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/models/s3"
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	s3sdk "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gorilla/mux"
@@ -112,7 +114,17 @@ func GetBucketMFADelete(w http.ResponseWriter, r *http.Request) {
 	bucketname := vars["bucketname"]
 
 	status := s3.GetBucketVersioning(bucketname)
-	respondJSON(w, http.StatusOK, map[string]string{"bucketname": bucketname, "status": status})
+
+	// Parse the status string to extract MFA delete status
+	mfaDelete := "Disabled"
+	if strings.Contains(status, "MFADelete: Enabled") {
+		mfaDelete = "Enabled"
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"bucketname": bucketname,
+		"mfa_delete": mfaDelete,
+	})
 }
 
 // UpdateBucketMFADelete updates MFA delete setting
@@ -121,9 +133,8 @@ func UpdateBucketMFADelete(w http.ResponseWriter, r *http.Request) {
 	bucketname := vars["bucketname"]
 
 	var req struct {
-		SecurityARN string `json:"security_arn"`
-		MFACode     string `json:"mfa_code"`
-		Enable      bool   `json:"enable"`
+		Status   string `json:"status"`
+		MFAToken string `json:"mfa_token"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -131,11 +142,44 @@ func UpdateBucketMFADelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s3.UpdateBucketMFADelete(bucketname, req.SecurityARN, req.MFACode, req.Enable)
+	// Validate MFA token format
+	if len(req.MFAToken) != 6 {
+		respondError(w, http.StatusBadRequest, "MFA token must be 6 digits")
+		return
+	}
+
+	// Get MFA device ARN from service
+	mfaDevice, err := service.LoadMFADevice()
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "MFA device not configured. Please configure it in Settings.")
+		return
+	}
+
+	enable := req.Status == "Enabled"
+
+	// Update MFA delete with error handling
+	err = s3.UpdateBucketMFADelete(bucketname, mfaDevice.DeviceARN, req.MFAToken, enable)
+	if err != nil {
+		// Check for common error types
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "s3:PutBucketVersioning") {
+			respondError(w, http.StatusForbidden, "Permission denied: Your IAM user needs 's3:PutBucketVersioning' permission to modify MFA Delete settings.")
+		} else if strings.Contains(errMsg, "InvalidToken") || strings.Contains(errMsg, "InvalidMFAToken") {
+			respondError(w, http.StatusBadRequest, "Invalid MFA token. Please check your code and try again.")
+		} else if strings.Contains(errMsg, "AccessDenied") {
+			respondError(w, http.StatusForbidden, "Access denied. Your IAM user may lack required permissions or the MFA device ARN is incorrect.")
+		} else if strings.Contains(errMsg, "NoSuchBucket") {
+			respondError(w, http.StatusNotFound, "Bucket not found.")
+		} else {
+			respondError(w, http.StatusInternalServerError, errMsg)
+		}
+		return
+	}
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"message":    "MFA delete updated",
+		"message":    "MFA delete updated successfully",
 		"bucketname": bucketname,
-		"enabled":    req.Enable,
+		"enabled":    enable,
 	})
 }
 
