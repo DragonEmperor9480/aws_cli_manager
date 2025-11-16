@@ -31,3 +31,20 @@ func CreateIAMUser(username string) (int, error) {
 	}
 	return UserCreatedSuccess, nil
 }
+
+// CreateIAMUserWithPassword creates a user and sets initial password in one operation
+// Returns user creation status code, password status code, and error
+func CreateIAMUserWithPassword(username, password string, requireReset bool) (int, int, error) {
+	// First create the user
+	userStatus, err := CreateIAMUser(username)
+
+	// If user creation failed, return immediately
+	if userStatus != UserCreatedSuccess {
+		return userStatus, 0, err
+	}
+
+	// User created successfully, now set password
+	passwordStatus, passwordErr := SetInitialUserPasswordModel(username, password, requireReset)
+
+	return userStatus, passwordStatus, passwordErr
+}
