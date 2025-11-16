@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 )
 
 // ConfigureAWS configures AWS credentials
@@ -26,21 +28,15 @@ func ConfigureAWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create AWS credentials directory
-	homeDir, err := os.UserHomeDir()
+	// Get config directory (works for both mobile and desktop)
+	configDir, err := db_service.GetConfigDirectory()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get home directory")
-		return
-	}
-
-	awsDir := filepath.Join(homeDir, ".aws")
-	if err := os.MkdirAll(awsDir, 0700); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to create .aws directory")
+		respondError(w, http.StatusInternalServerError, "Failed to get config directory")
 		return
 	}
 
 	// Write credentials file
-	credentialsFile := filepath.Join(awsDir, "credentials")
+	credentialsFile := filepath.Join(configDir, "credentials")
 	credentialsContent := `[default]
 aws_access_key_id = ` + req.AccessKeyID + `
 aws_secret_access_key = ` + req.SecretAccessKey + `
@@ -52,7 +48,7 @@ aws_secret_access_key = ` + req.SecretAccessKey + `
 	}
 
 	// Write config file
-	configFile := filepath.Join(awsDir, "config")
+	configFile := filepath.Join(configDir, "config")
 	configContent := `[default]
 region = ` + req.Region + `
 output = json
@@ -68,18 +64,18 @@ output = json
 
 // GetAWSConfig gets current AWS configuration
 func GetAWSConfig(w http.ResponseWriter, r *http.Request) {
-	// Check if credentials file exists
-	homeDir, err := os.UserHomeDir()
+	// Get config directory (works for both mobile and desktop)
+	configDir, err := db_service.GetConfigDirectory()
 	if err != nil {
 		respondJSON(w, http.StatusOK, map[string]interface{}{
 			"configured": false,
-			"message":    "Failed to get home directory",
+			"message":    "Failed to get config directory",
 		})
 		return
 	}
 
-	credentialsFile := filepath.Join(homeDir, ".aws", "credentials")
-	configFile := filepath.Join(homeDir, ".aws", "config")
+	credentialsFile := filepath.Join(configDir, "credentials")
+	configFile := filepath.Join(configDir, "config")
 
 	// Check if credentials file exists and is not empty
 	credInfo, err := os.Stat(credentialsFile)

@@ -39,6 +39,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 func SetDataDirectory(dir *C.char) int {
 	dataDir := C.GoString(dir)
 	db_service.SetDataDirectory(dataDir)
+	// Set environment variable so other packages can access it
+	os.Setenv("AWSMGR_DATA_DIR", dataDir)
 	log.Printf("Data directory set to: %s", dataDir)
 	return 0
 }

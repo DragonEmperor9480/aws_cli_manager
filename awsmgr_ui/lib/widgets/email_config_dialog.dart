@@ -423,7 +423,7 @@ class EmailConfigHelpDialog extends StatelessWidget {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              'Your email credentials are stored securely in ~/.aws/email_config.json on your computer and used by the backend to send emails.',
+                              'Your email credentials are stored securely in the app data directory and used by the backend to send emails.',
                               style: TextStyle(fontSize: 13),
                             ),
                           ),

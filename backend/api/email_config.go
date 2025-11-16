@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/DragonEmperor9480/aws_cli_manager/db_service"
 	"github.com/DragonEmperor9480/aws_cli_manager/service"
 )
 
@@ -24,22 +25,15 @@ func SaveEmailConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get home directory
-	homeDir, err := os.UserHomeDir()
+	// Get config directory (works for both mobile and desktop)
+	configDir, err := db_service.GetConfigDirectory()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get home directory")
-		return
-	}
-
-	// Create .aws directory if it doesn't exist
-	awsDir := filepath.Join(homeDir, ".aws")
-	if err := os.MkdirAll(awsDir, 0700); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to create .aws directory")
+		respondError(w, http.StatusInternalServerError, "Failed to get config directory")
 		return
 	}
 
 	// Write email config to file
-	emailConfigFile := filepath.Join(awsDir, "email_config.json")
+	emailConfigFile := filepath.Join(configDir, "email_config.json")
 	configData, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to marshal email config")
@@ -79,13 +73,14 @@ func GetEmailConfig(w http.ResponseWriter, r *http.Request) {
 
 // DeleteEmailConfig deletes the email configuration file
 func DeleteEmailConfig(w http.ResponseWriter, r *http.Request) {
-	homeDir, err := os.UserHomeDir()
+	// Get config directory (works for both mobile and desktop)
+	configDir, err := db_service.GetConfigDirectory()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to get home directory")
+		respondError(w, http.StatusInternalServerError, "Failed to get config directory")
 		return
 	}
 
-	emailConfigFile := filepath.Join(homeDir, ".aws", "email_config.json")
+	emailConfigFile := filepath.Join(configDir, "email_config.json")
 
 	// Check if file exists
 	if _, err := os.Stat(emailConfigFile); os.IsNotExist(err) {
