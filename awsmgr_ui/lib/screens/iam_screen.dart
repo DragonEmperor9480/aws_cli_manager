@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import '../services/email_config_service.dart';
 import '../widgets/aws_config_dialog.dart';
 import '../widgets/loading_animation.dart';
 import 'iam_user_profile_screen.dart';
@@ -1673,6 +1674,7 @@ class CredentialsDialog extends StatefulWidget {
 
 class _CredentialsDialogState extends State<CredentialsDialog> {
   final Set<int> _visiblePasswords = {};
+  bool _sending = false;
 
   void _togglePasswordVisibility(int index) {
     setState(() {
@@ -1682,6 +1684,201 @@ class _CredentialsDialogState extends State<CredentialsDialog> {
         _visiblePasswords.add(index);
       }
     });
+  }
+
+  Future<void> _sendViaEmail(Map<String, String?> credential) async {
+    // Check if email config exists
+    final hasConfig = await EmailConfigService.hasEmailConfig();
+    if (!hasConfig) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please configure email settings first'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'Settings',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Ask for recipient email
+    final emailController = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.email, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Send Credentials'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Send credentials for ${credential['username']} via email'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: 'Recipient Email',
+                hintText: 'user@example.com',
+                prefixIcon: const Icon(Icons.email),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              keyboardType: TextInputType.emailAddress,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (emailController.text.contains('@')) {
+                Navigator.pop(context, emailController.text.trim());
+              }
+            },
+            child: const Text('Next'),
+          ),
+        ],
+      ),
+    );
+
+    if (email == null || email.isEmpty) return;
+
+    // Confirm email
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Confirm Email'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure this is the correct email address?'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email, color: Colors.blue),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Credentials will be sent to this email address',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.send),
+            label: const Text('Send'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Send email
+    setState(() => _sending = true);
+    try {
+      await ApiService.sendUserCredentialsEmail(
+        username: credential['username']!,
+        password: credential['password']!,
+        email: email,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Credentials sent to $email'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send email: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _sending = false);
+    }
   }
 
   void _downloadCredentials() {
@@ -1949,30 +2146,75 @@ class _CredentialsDialogState extends State<CredentialsDialog> {
                 color: Colors.grey.shade50,
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _downloadCredentials,
-                      icon: const Icon(Icons.download),
-                      label: const Text('Copy to Clipboard'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Send via Email buttons (one per credential)
+                  if (credsWithPasswords.length == 1) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _sending ? null : () => _sendViaEmail(credsWithPasswords[0]),
+                        icon: _sending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.email),
+                        label: Text(_sending ? 'Sending...' : 'Send via Email'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.check),
-                      label: const Text('I\'ve Saved Them'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: credsWithPasswords.map((cred) {
+                        return OutlinedButton.icon(
+                          onPressed: _sending ? null : () => _sendViaEmail(cred),
+                          icon: const Icon(Icons.email, size: 16),
+                          label: Text('Email ${cred['username']}', style: const TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            foregroundColor: Colors.blue,
+                            side: const BorderSide(color: Colors.blue),
+                          ),
+                        );
+                      }).toList(),
                     ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _downloadCredentials,
+                          icon: const Icon(Icons.download),
+                          label: const Text('Copy All'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.check),
+                          label: const Text('I\'ve Saved Them'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

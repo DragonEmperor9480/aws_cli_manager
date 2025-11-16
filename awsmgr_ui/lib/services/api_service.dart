@@ -130,6 +130,70 @@ class ApiService {
     }
   }
 
+  static Future<void> sendUserCredentialsEmail({
+    required String username,
+    required String password,
+    required String email,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/send-credentials'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'username': username,
+        'password': password,
+        'email': email,
+        // console_url and email_config are now automatically handled by the backend
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to send credentials email');
+    }
+  }
+
+  // Email Configuration
+  static Future<Map<String, dynamic>> getEmailConfig() async {
+    final response = await http.get(Uri.parse('$baseUrl/email/config'));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to get email config');
+  }
+
+  static Future<void> saveEmailConfig({
+    required String smtpHost,
+    required int smtpPort,
+    required String senderEmail,
+    required String senderPass,
+    required String senderName,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/email/config'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'smtp_host': smtpHost,
+        'smtp_port': smtpPort,
+        'sender_email': senderEmail,
+        'sender_pass': senderPass,
+        'sender_name': senderName,
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to save email config');
+    }
+  }
+
+  static Future<void> deleteEmailConfig() async {
+    final response = await http.delete(Uri.parse('$baseUrl/email/config'));
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete email config');
+    }
+  }
+
   static Future<void> deleteIAMUser(String username, {bool force = false}) async {
     final url = force 
         ? '$baseUrl/iam/users/$username?force=true'

@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/aws_credentials_service.dart';
+import '../services/email_config_service.dart';
 import '../services/backend_service.dart';
 import 'credentials_setup_screen.dart';
+import '../widgets/email_config_dialog.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,8 +17,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _hasCredentials = false;
+  bool _hasEmailConfig = false;
   bool _loading = true;
   String? _region;
+  String? _senderEmail;
   String _version = 'Loading...';
   String _osName = 'Loading...';
 
@@ -24,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadCredentialStatus();
+    _loadEmailConfigStatus();
     _loadVersionInfo();
   }
 
@@ -44,6 +49,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('Error loading credentials: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadEmailConfigStatus() async {
+    try {
+      final hasConfig = await EmailConfigService.hasEmailConfig();
+      if (hasConfig) {
+        final config = await EmailConfigService.getEmailConfig();
+        setState(() {
+          _hasEmailConfig = true;
+          _senderEmail = config?['sender_email'];
+        });
+      } else {
+        setState(() => _hasEmailConfig = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading email config: $e');
     }
   }
 
@@ -134,6 +156,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _configureEmail() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const EmailConfigDialog(),
+    );
+    
+    if (result == true) {
+      _loadEmailConfigStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Email configuration saved'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteEmailConfig() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Email Configuration'),
+        content: const Text(
+          'Are you sure you want to delete your email configuration? '
+          'You will need to re-enter it to send credentials via email.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await EmailConfigService.deleteEmailConfig();
+        setState(() {
+          _hasEmailConfig = false;
+          _senderEmail = null;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Email configuration deleted'),
+              backgroundColor: AppTheme.successGreen,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete email configuration: $e'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,6 +245,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSectionHeader('AWS Credentials'),
                 const SizedBox(height: 16),
                 _buildCredentialsCard(),
+                
+                const SizedBox(height: 32),
+                
+                // Email Configuration Section
+                _buildSectionHeader('Email Configuration'),
+                const SizedBox(height: 16),
+                _buildEmailConfigCard(),
                 
                 const SizedBox(height: 32),
                 
@@ -276,6 +376,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: _updateCredentials,
                 icon: const Icon(Icons.add),
                 label: const Text('Add Credentials'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailConfigCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _hasEmailConfig
+                      ? AppTheme.successGreen.withValues(alpha: 0.1)
+                      : AppTheme.warningAmber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _hasEmailConfig ? Icons.mark_email_read : Icons.email_outlined,
+                  color: _hasEmailConfig
+                      ? AppTheme.successGreen
+                      : AppTheme.warningAmber,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _hasEmailConfig ? 'Email Configured' : 'No Email Config',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _hasEmailConfig
+                          ? 'Sender: ${_senderEmail ?? 'Unknown'}'
+                          : 'Configure SMTP to send credentials',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_hasEmailConfig) ...[
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _configureEmail,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Update'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryPurple,
+                      side: BorderSide(color: AppTheme.primaryPurple),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _deleteEmailConfig,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorRed,
+                      side: BorderSide(color: AppTheme.errorRed),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _configureEmail,
+                icon: const Icon(Icons.add),
+                label: const Text('Configure Email'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryPurple,
                   foregroundColor: Colors.white,
