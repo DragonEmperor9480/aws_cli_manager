@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../widgets/aws_config_dialog.dart';
 import '../widgets/loading_animation.dart';
@@ -104,16 +105,31 @@ class _IAMScreenState extends State<IAMScreen>
           requireReset: result['require_reset'] ?? false,
         );
         
-        if (result['password'] != null && result['password'].isNotEmpty) {
-          _showSuccess('User "${result['username']}" created with password');
+        setState(() => _operationInProgress = false);
+        
+        // Show credentials dialog only if password was set
+        if (mounted && result['password'] != null && result['password'].isNotEmpty) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => CredentialsDialog(
+              credentials: [
+                {
+                  'username': result['username']!,
+                  'password': result['password']!,
+                }
+              ],
+            ),
+          );
         } else {
+          // Show success message for user without password
           _showSuccess('User "${result['username']}" created successfully');
         }
+        
         await _loadData();
       } catch (e) {
-        _showError('Failed to create user: $e');
-      } finally {
         setState(() => _operationInProgress = false);
+        _showError('Failed to create user: $e');
       }
     }
   }
@@ -133,7 +149,31 @@ class _IAMScreenState extends State<IAMScreen>
         final failureCount = response['failure_count'] ?? 0;
         final results = response['results'] as List;
         
-        // Show detailed results dialog
+        setState(() => _operationInProgress = false);
+        
+        // Prepare credentials for successful users with passwords
+        final credentials = <Map<String, String>>[];
+        for (int i = 0; i < results.length; i++) {
+          final apiResult = results[i];
+          final inputData = result[i];
+          if (apiResult['Success'] == true && inputData['password'] != null) {
+            credentials.add({
+              'username': apiResult['Username'],
+              'password': inputData['password'],
+            });
+          }
+        }
+        
+        // Show credentials dialog first if there are any
+        if (mounted && credentials.isNotEmpty) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => CredentialsDialog(credentials: credentials),
+          );
+        }
+        
+        // Then show detailed results dialog
         if (mounted) {
           await showDialog(
             context: context,
@@ -147,9 +187,8 @@ class _IAMScreenState extends State<IAMScreen>
         
         await _loadData();
       } catch (e) {
-        _showError('Failed to create users: $e');
-      } finally {
         setState(() => _operationInProgress = false);
+        _showError('Failed to create users: $e');
       }
     }
   }
@@ -1409,6 +1448,330 @@ class BatchResultsDialog extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+// Credentials Dialog
+class CredentialsDialog extends StatefulWidget {
+  final List<Map<String, String?>> credentials;
+
+  const CredentialsDialog({super.key, required this.credentials});
+
+  @override
+  State<CredentialsDialog> createState() => _CredentialsDialogState();
+}
+
+class _CredentialsDialogState extends State<CredentialsDialog> {
+  final Set<int> _visiblePasswords = {};
+
+  void _togglePasswordVisibility(int index) {
+    setState(() {
+      if (_visiblePasswords.contains(index)) {
+        _visiblePasswords.remove(index);
+      } else {
+        _visiblePasswords.add(index);
+      }
+    });
+  }
+
+  void _downloadCredentials() {
+    final buffer = StringBuffer();
+    buffer.writeln('IAM User Credentials');
+    buffer.writeln('Generated: ${DateTime.now()}');
+    buffer.writeln('=' * 50);
+    buffer.writeln();
+    
+    for (var cred in widget.credentials) {
+      buffer.writeln('Username: ${cred['username']}');
+      if (cred['password'] != null && cred['password']!.isNotEmpty) {
+        buffer.writeln('Password: ${cred['password']}');
+      }
+      buffer.writeln('-' * 50);
+    }
+    
+    // Copy to clipboard
+    final content = buffer.toString();
+    Clipboard.setData(ClipboardData(text: content));
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Credentials copied to clipboard!'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Filter out credentials without passwords
+    final credsWithPasswords = widget.credentials
+        .where((c) => c['password'] != null && c['password']!.isNotEmpty)
+        .toList();
+    
+    if (credsWithPasswords.isEmpty) {
+      // No passwords to show, just close
+      Future.microtask(() => Navigator.pop(context));
+      return const SizedBox.shrink();
+    }
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 600,
+        constraints: const BoxConstraints(maxHeight: 700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.orange.shade400, Colors.orange.shade600],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.key, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Save These Credentials!',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'This is the only time you can view these passwords',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Warning banner
+            Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.orange.shade50,
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Make sure to save these credentials securely. You won\'t be able to retrieve them later.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Credentials list
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: credsWithPasswords.length,
+                itemBuilder: (context, index) {
+                  final cred = credsWithPasswords[index];
+                  final username = cred['username'] ?? '';
+                  final password = cred['password'] ?? '';
+                  final isVisible = _visiblePasswords.contains(index);
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Username
+                          Row(
+                            children: [
+                              const Icon(Icons.person, size: 18, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Username:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  username,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 18),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: username));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Username copied!'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Copy username',
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 24),
+                          
+                          // Password
+                          Row(
+                            children: [
+                              const Icon(Icons.lock, size: 18, color: Colors.orange),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Password:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Text(
+                                    isVisible ? password : '•' * 12,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: isVisible ? 'monospace' : null,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: isVisible ? 1 : 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: Icon(
+                                  isVisible ? Icons.visibility_off : Icons.visibility,
+                                  size: 18,
+                                ),
+                                onPressed: () => _togglePasswordVisibility(index),
+                                tooltip: isVisible ? 'Hide password' : 'Show password',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 18),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: password));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Password copied!'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Copy password',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            // Footer
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _downloadCredentials,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Copy to Clipboard'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.check),
+                      label: const Text('I\'ve Saved Them'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
