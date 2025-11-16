@@ -299,22 +299,31 @@ func UploadS3Object(w http.ResponseWriter, r *http.Request) {
 
 	fileSize := header.Size
 
-	// Save to temp file
-	tempFile := "/tmp/" + header.Filename
-	outFile, err := os.Create(tempFile)
+	// Get temp directory - use app's data directory if available (for mobile)
+	tempDir := os.Getenv("AWSMGR_DATA_DIR")
+	if tempDir == "" {
+		tempDir = os.TempDir()
+	}
+	
+	// Create temp file in the appropriate directory
+	tempFile, err := os.CreateTemp(tempDir, "s3upload-*-"+header.Filename)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create temp file: "+err.Error())
 		return
 	}
-	defer outFile.Close()
-	defer os.Remove(tempFile)
+	tempFilePath := tempFile.Name()
+	defer tempFile.Close()
+	defer os.Remove(tempFilePath)
 
 	// Copy file to temp location (this is fast for localhost)
-	_, err = io.Copy(outFile, file)
+	_, err = io.Copy(tempFile, file)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to save file: "+err.Error())
 		return
 	}
+
+	// Close the file before uploading
+	tempFile.Close()
 
 	// Start the response with initial progress
 	w.WriteHeader(http.StatusOK)
@@ -323,7 +332,7 @@ func UploadS3Object(w http.ResponseWriter, r *http.Request) {
 
 	// Upload to S3 with progress tracking
 	progressSent := int64(0)
-	err = s3.UploadS3ObjectWithProgress(bucketname, objectKey, tempFile, func(current, total int64) {
+	err = s3.UploadS3ObjectWithProgress(bucketname, objectKey, tempFilePath, func(current, total int64) {
 		// Only send progress updates every 5% to avoid flooding
 		if current-progressSent > total/20 || current == total {
 			progressSent = current
