@@ -18,6 +18,8 @@ class _IAMScreenState extends State<IAMScreen>
   List<dynamic> _groups = [];
   bool _loading = false;
   bool _operationInProgress = false;
+  bool _selectionMode = false;
+  final Set<String> _selectedUsers = {};
 
   @override
   void initState() {
@@ -189,6 +191,79 @@ class _IAMScreenState extends State<IAMScreen>
       } catch (e) {
         setState(() => _operationInProgress = false);
         _showError('Failed to create users: $e');
+      }
+    }
+  }
+
+  Future<void> _batchDeleteUsers() async {
+    if (_selectedUsers.isEmpty) return;
+
+    final usernames = _selectedUsers.toList();
+    
+    // Check dependencies for all selected users
+    setState(() => _operationInProgress = true);
+    late List<dynamic> dependencies;
+    
+    try {
+      dependencies = await ApiService.checkMultipleUserDependencies(usernames);
+    } catch (e) {
+      setState(() => _operationInProgress = false);
+      _showError('Failed to check dependencies: $e');
+      return;
+    }
+    
+    setState(() => _operationInProgress = false);
+
+    // Show dependencies dialog and get confirmation
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => BatchDeleteConfirmationDialog(
+        dependencies: dependencies,
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _operationInProgress = true);
+      
+      try {
+        // Prepare delete requests with force flag
+        final deleteRequests = usernames.map((username) {
+          return {
+            'username': username,
+            'force': true, // Always force delete to remove dependencies
+          };
+        }).toList();
+        
+        final response = await ApiService.deleteMultipleIAMUsers(deleteRequests);
+        
+        final successCount = response['success_count'] ?? 0;
+        final failureCount = response['failure_count'] ?? 0;
+        final results = response['results'] as List;
+        
+        setState(() => _operationInProgress = false);
+        
+        // Show results dialog
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (context) => BatchDeleteResultsDialog(
+              successCount: successCount,
+              failureCount: failureCount,
+              results: results,
+            ),
+          );
+        }
+        
+        // Clear selection and exit selection mode
+        setState(() {
+          _selectedUsers.clear();
+          _selectionMode = false;
+        });
+        
+        await _loadData();
+      } catch (e) {
+        setState(() => _operationInProgress = false);
+        _showError('Failed to delete users: $e');
       }
     }
   }
@@ -367,82 +442,154 @@ class _IAMScreenState extends State<IAMScreen>
         Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: _selectionMode ? Colors.orange.shade50 : Colors.blue.shade50,
             border: Border(
-              bottom: BorderSide(color: Colors.blue.shade100),
+              bottom: BorderSide(
+                color: _selectionMode ? Colors.orange.shade100 : Colors.blue.shade100,
+              ),
             ),
           ),
-          child: Row(
+          child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.people, color: Colors.blue.shade700),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'IAM Users',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    Text(
-                      '${_users.length} users found',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    child: Icon(Icons.people, color: Colors.blue.shade700),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectionMode ? 'Select Users' : 'IAM Users',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          _selectionMode
+                              ? '${_selectedUsers.length} selected'
+                              : '${_users.length} users',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadData,
+                    tooltip: 'Refresh',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Action buttons row
+              if (!_selectionMode)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _createUser,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Create'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _createMultipleUsers,
+                      icon: const Icon(Icons.group_add, size: 18),
+                      label: const Text('Batch Create'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectionMode = true;
+                          _selectedUsers.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.delete_sweep, size: 18),
+                      label: const Text('Batch Delete'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _selectedUsers.isNotEmpty ? _batchDeleteUsers : null,
+                        icon: const Icon(Icons.delete, size: 18),
+                        label: Text('Delete (${_selectedUsers.length})'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectionMode = false;
+                            _selectedUsers.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('Cancel'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _createUser,
-                icon: const Icon(Icons.add),
-                label: const Text('Create User'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _createMultipleUsers,
-                icon: const Icon(Icons.group_add),
-                label: const Text('Batch Create'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadData,
-                tooltip: 'Refresh',
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -483,32 +630,63 @@ class _IAMScreenState extends State<IAMScreen>
                       itemCount: _users.length,
                       itemBuilder: (context, index) {
                         final user = _users[index];
+                        final username = user['username'] ?? '';
+                        final isSelected = _selectedUsers.contains(username);
+                        
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           elevation: 2,
+                          color: isSelected ? Colors.orange.shade50 : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
+                            side: isSelected
+                                ? BorderSide(color: Colors.orange, width: 2)
+                                : BorderSide.none,
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.blue.shade400,
-                                    Colors.blue.shade600,
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
+                            onTap: _selectionMode
+                                ? () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedUsers.remove(username);
+                                      } else {
+                                        _selectedUsers.add(username);
+                                      }
+                                    });
+                                  }
+                                : null,
+                            leading: _selectionMode
+                                ? Checkbox(
+                                    value: isSelected,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          _selectedUsers.add(username);
+                                        } else {
+                                          _selectedUsers.remove(username);
+                                        }
+                                      });
+                                    },
+                                  )
+                                : Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.blue.shade400,
+                                          Colors.blue.shade600,
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                  ),
                             title: Text(
                               user['username'] ?? '',
                               style: const TextStyle(
@@ -553,18 +731,20 @@ class _IAMScreenState extends State<IAMScreen>
                                 ],
                               ],
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              color: Colors.red,
-                              tooltip: 'Delete user',
-                              onPressed: () => _deleteUser(user['username']),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.red.shade50,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
+                            trailing: _selectionMode
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    color: Colors.red,
+                                    tooltip: 'Delete user',
+                                    onPressed: () => _deleteUser(username),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.red.shade50,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
                           ),
                         );
                       },
@@ -1073,34 +1253,54 @@ class _BatchCreateUsersDialogState extends State<BatchCreateUsersDialog> {
                 color: Colors.grey.shade50,
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _addUser,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add User'),
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _addUser,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add User'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_users.length} user(s)',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_users.length} user(s)',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _canCreate
-                        ? () => Navigator.pop(context, _getUsersData())
-                        : null,
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('Create All'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: _canCreate
+                              ? () => Navigator.pop(context, _getUsersData())
+                              : null,
+                          icon: const Icon(Icons.group_add, size: 18),
+                          label: const Text('Create All'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1772,6 +1972,287 @@ class _CredentialsDialogState extends State<CredentialsDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+// Batch Delete Confirmation Dialog
+class BatchDeleteConfirmationDialog extends StatelessWidget {
+  final List<dynamic> dependencies;
+
+  const BatchDeleteConfirmationDialog({
+    super.key,
+    required this.dependencies,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Count users with dependencies
+    int usersWithDeps = 0;
+    for (var dep in dependencies) {
+      final deps = dep['dependencies'];
+      if (deps != null) {
+        final hasDeps = (deps['groups'] as List?)?.isNotEmpty == true ||
+            (deps['managed_policies'] as List?)?.isNotEmpty == true ||
+            (deps['inline_policies'] as List?)?.isNotEmpty == true ||
+            (deps['access_keys'] as List?)?.isNotEmpty == true ||
+            deps['has_login_profile'] == true;
+        if (hasDeps) usersWithDeps++;
+      }
+    }
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(
+            usersWithDeps > 0 ? Icons.warning : Icons.delete,
+            color: usersWithDeps > 0 ? Colors.orange : Colors.red,
+          ),
+          const SizedBox(width: 8),
+          const Text('Confirm Batch Delete'),
+        ],
+      ),
+      content: SizedBox(
+        width: 600,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You are about to delete ${dependencies.length} user(s).',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              if (usersWithDeps > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.info, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$usersWithDeps user(s) have dependencies',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'All dependencies will be automatically removed before deletion.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Users with dependencies:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...dependencies.where((dep) {
+                  final deps = dep['dependencies'];
+                  if (deps == null) return false;
+                  return (deps['groups'] as List?)?.isNotEmpty == true ||
+                      (deps['managed_policies'] as List?)?.isNotEmpty == true ||
+                      (deps['inline_policies'] as List?)?.isNotEmpty == true ||
+                      (deps['access_keys'] as List?)?.isNotEmpty == true ||
+                      deps['has_login_profile'] == true;
+                }).map((dep) {
+                  final username = dep['username'];
+                  final deps = dep['dependencies'];
+                  return ExpansionTile(
+                    dense: true,
+                    title: Text(username, style: const TextStyle(fontSize: 14)),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if ((deps['groups'] as List?)?.isNotEmpty == true)
+                              _buildDepList('Groups', deps['groups']),
+                            if ((deps['managed_policies'] as List?)?.isNotEmpty == true)
+                              _buildDepList('Policies', deps['managed_policies']),
+                            if ((deps['inline_policies'] as List?)?.isNotEmpty == true)
+                              _buildDepList('Inline Policies', deps['inline_policies']),
+                            if ((deps['access_keys'] as List?)?.isNotEmpty == true)
+                              _buildDepList('Access Keys', deps['access_keys']),
+                            if (deps['has_login_profile'] == true)
+                              const Text('• Has login profile', style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'This action cannot be undone.',
+                style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context, true),
+          icon: const Icon(Icons.delete),
+          label: const Text('Delete All'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDepList(String title, List items) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$title:', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ...items.map((item) => Text('  • $item', style: const TextStyle(fontSize: 11))),
+        ],
+      ),
+    );
+  }
+}
+
+// Batch Delete Results Dialog
+class BatchDeleteResultsDialog extends StatelessWidget {
+  final int successCount;
+  final int failureCount;
+  final List results;
+
+  const BatchDeleteResultsDialog({
+    super.key,
+    required this.successCount,
+    required this.failureCount,
+    required this.results,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(
+            failureCount == 0 ? Icons.check_circle : Icons.info,
+            color: failureCount == 0 ? Colors.green : Colors.orange,
+          ),
+          const SizedBox(width: 8),
+          const Text('Batch Deletion Results'),
+        ],
+      ),
+      content: SizedBox(
+        width: 500,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Summary
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStat('Total', results.length, Colors.blue),
+                  _buildStat('Deleted', successCount, Colors.green),
+                  if (failureCount > 0)
+                    _buildStat('Failed', failureCount, Colors.red),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Details:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            // Results list
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: results.length,
+                itemBuilder: (context, index) {
+                  final result = results[index];
+                  final success = result['Success'] ?? false;
+                  final username = result['Username'] ?? '';
+                  final error = result['Error'] ?? '';
+                  
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(
+                      success ? Icons.check_circle : Icons.error,
+                      color: success ? Colors.green : Colors.red,
+                      size: 20,
+                    ),
+                    title: Text(username),
+                    subtitle: !success ? Text(error, style: const TextStyle(fontSize: 12)) : null,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStat(String label, int value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value.toString(),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
     );
   }
 }
