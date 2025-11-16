@@ -132,11 +132,17 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
   String _searchQuery = '';
   SortOption _sortOption = SortOption.nameAsc;
   final TextEditingController _searchController = TextEditingController();
+  
+  // Versioning and MFA Delete state
+  bool _versioningEnabled = false;
+  bool _mfaDeleteEnabled = false;
+  bool _loadingVersioning = false;
 
   @override
   void initState() {
     super.initState();
     _loadItems();
+    _loadVersioningStatus();
   }
 
   @override
@@ -237,6 +243,105 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadVersioningStatus() async {
+    setState(() => _loadingVersioning = true);
+    try {
+      final versioningStatus = await ApiService.getBucketVersioning(widget.bucketName);
+      final mfaStatus = await ApiService.getBucketMFADelete(widget.bucketName);
+      
+      setState(() {
+        _versioningEnabled = versioningStatus['status'] == 'Enabled';
+        _mfaDeleteEnabled = mfaStatus['mfa_delete'] == 'Enabled';
+      });
+    } catch (e) {
+      debugPrint('Failed to load versioning status: $e');
+    } finally {
+      setState(() => _loadingVersioning = false);
+    }
+  }
+
+  Future<void> _toggleMFADelete(bool value) async {
+    if (!_versioningEnabled) {
+      _showError('Versioning must be enabled before configuring MFA Delete');
+      return;
+    }
+
+    // Check if MFA device is configured
+    try {
+      final mfaDevice = await ApiService.getMFADevice();
+      if (mfaDevice['configured'] != true) {
+        _showError('Please configure MFA device in Settings first');
+        return;
+      }
+    } catch (e) {
+      _showError('Please configure MFA device in Settings first');
+      return;
+    }
+
+    // Show MFA token dialog
+    final mfaToken = await _showMFATokenDialog();
+    if (mfaToken == null) return;
+
+    setState(() => _loadingVersioning = true);
+    try {
+      await ApiService.updateBucketMFADelete(
+        widget.bucketName,
+        value ? 'Enabled' : 'Disabled',
+        mfaToken,
+      );
+      
+      setState(() => _mfaDeleteEnabled = value);
+      _showSuccess('MFA Delete ${value ? 'enabled' : 'disabled'} successfully');
+    } catch (e) {
+      _showError('Failed to update MFA Delete: $e');
+    } finally {
+      setState(() => _loadingVersioning = false);
+    }
+  }
+
+  Future<String?> _showMFATokenDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter MFA Token'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter the 6-digit code from your MFA device:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'MFA Token',
+                hintText: '123456',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.length == 6) {
+                Navigator.pop(context, controller.text);
+              }
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   void _navigateToFolder(String folderKey) {
@@ -734,6 +839,68 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // MFA Delete Toggle
+                  if (_currentPrefix.isEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _versioningEnabled 
+                              ? AppTheme.s3Color.withValues(alpha: 0.3)
+                              : Colors.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.security,
+                            size: 20,
+                            color: _versioningEnabled ? AppTheme.s3Color : Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'MFA Delete',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _versioningEnabled ? Colors.black87 : Colors.grey,
+                                  ),
+                                ),
+                                Text(
+                                  _versioningEnabled 
+                                      ? 'Require MFA to delete objects'
+                                      : 'Enable versioning first',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_loadingVersioning)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            Switch(
+                              value: _mfaDeleteEnabled,
+                              onChanged: _versioningEnabled ? _toggleMFADelete : null,
+                              activeColor: AppTheme.s3Color,
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     children: [
                       Expanded(

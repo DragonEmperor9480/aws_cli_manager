@@ -591,7 +591,8 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
 
   Future<void> _loadVersioningStatus() async {
     try {
-      final status = await ApiService.getBucketVersioning(widget.bucketName);
+      final result = await ApiService.getBucketVersioning(widget.bucketName);
+      final status = result['status'] as String? ?? '';
       setState(() {
         _versioningStatus = status.isEmpty ? 'Disabled' : status;
       });

@@ -344,15 +344,44 @@ class ApiService {
     throw Exception('Failed to load objects');
   }
 
-  static Future<String> getBucketVersioning(String bucketname) async {
+  static Future<Map<String, dynamic>> getBucketVersioning(String bucketname) async {
     final response = await http.get(
       Uri.parse('$baseUrl/s3/buckets/$bucketname/versioning'),
     );
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['status'] ?? '';
+      return json.decode(response.body);
     }
     throw Exception('Failed to get versioning status');
+  }
+
+  static Future<Map<String, dynamic>> getBucketMFADelete(String bucketname) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/mfa-delete'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to get MFA delete status');
+  }
+
+  static Future<void> updateBucketMFADelete(
+    String bucketname,
+    String status,
+    String mfaToken,
+  ) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/s3/buckets/$bucketname/mfa-delete'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'status': status,
+        'mfa_token': mfaToken,
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to update MFA delete');
+    }
   }
 
   static Future<List<int>> downloadS3Object(
