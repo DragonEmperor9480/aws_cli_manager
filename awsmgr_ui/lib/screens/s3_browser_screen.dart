@@ -246,11 +246,13 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
   }
 
   Future<void> _loadVersioningStatus() async {
+    if (!mounted) return;
     setState(() => _loadingVersioning = true);
     try {
       final versioningStatus = await ApiService.getBucketVersioning(widget.bucketName);
       final mfaStatus = await ApiService.getBucketMFADelete(widget.bucketName);
       
+      if (!mounted) return;
       setState(() {
         _versioningEnabled = versioningStatus['status'] == 'Enabled';
         _mfaDeleteEnabled = mfaStatus['mfa_delete'] == 'Enabled';
@@ -258,7 +260,9 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
     } catch (e) {
       debugPrint('Failed to load versioning status: $e');
     } finally {
-      setState(() => _loadingVersioning = false);
+      if (mounted) {
+        setState(() => _loadingVersioning = false);
+      }
     }
   }
 
@@ -277,10 +281,11 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
             Text(value ? 'Enable Versioning?' : 'Disable Versioning?'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               value
                   ? 'Enabling versioning will:'
@@ -331,7 +336,8 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -350,7 +356,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() => _loadingVersioning = true);
     try {
@@ -359,10 +365,12 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
         value ? 'Enabled' : 'Suspended',
       );
       
+      if (!mounted) return;
       setState(() => _versioningEnabled = value);
       
       // If disabling versioning, also disable MFA delete
       if (!value && _mfaDeleteEnabled) {
+        if (!mounted) return;
         setState(() => _mfaDeleteEnabled = false);
       }
       
@@ -370,7 +378,9 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
     } catch (e) {
       _showError('Failed to update versioning: $e');
     } finally {
-      setState(() => _loadingVersioning = false);
+      if (mounted) {
+        setState(() => _loadingVersioning = false);
+      }
     }
   }
 
@@ -394,7 +404,7 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
 
     // Show MFA token dialog
     final mfaToken = await _showMFATokenDialog();
-    if (mfaToken == null) return;
+    if (mfaToken == null || !mounted) return;
 
     setState(() => _loadingVersioning = true);
     try {
@@ -404,56 +414,25 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
         mfaToken,
       );
       
+      if (!mounted) return;
       setState(() => _mfaDeleteEnabled = value);
       _showSuccess('MFA Delete ${value ? 'enabled' : 'disabled'} successfully');
     } catch (e) {
       _showError('Failed to update MFA Delete: $e');
     } finally {
-      setState(() => _loadingVersioning = false);
+      if (mounted) {
+        setState(() => _loadingVersioning = false);
+      }
     }
   }
 
   Future<String?> _showMFATokenDialog() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    if (!mounted) return null;
+    
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter MFA Token'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter the 6-digit code from your MFA device:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: const InputDecoration(
-                labelText: 'MFA Token',
-                hintText: '123456',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.length == 6) {
-                Navigator.pop(context, controller.text);
-              }
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (context) => _MFATokenDialog(),
     );
-    controller.dispose();
-    return result;
   }
 
   void _navigateToFolder(String folderKey) {
@@ -1499,6 +1478,68 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
             ),
           ],
         ),
+    );
+  }
+}
+
+// MFA Token Dialog Widget
+class _MFATokenDialog extends StatefulWidget {
+  @override
+  State<_MFATokenDialog> createState() => _MFATokenDialogState();
+}
+
+class _MFATokenDialogState extends State<_MFATokenDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Enter MFA Token'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter the 6-digit code from your MFA device:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'MFA Token',
+                hintText: '123456',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) {
+                if (value.length == 6) {
+                  Navigator.pop(context, value);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_controller.text.length == 6) {
+              Navigator.pop(context, _controller.text);
+            }
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
     );
   }
 }
