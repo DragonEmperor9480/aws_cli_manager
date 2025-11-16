@@ -120,6 +120,9 @@ func StartBackend() int {
 	r.HandleFunc("/api/iam/groups/{groupname}/users", api.AddUserToGroup).Methods("POST")
 	r.HandleFunc("/api/iam/groups/{groupname}/users/{username}", api.RemoveUserFromGroup).Methods("DELETE")
 
+	// IAM Policies
+	r.HandleFunc("/api/iam/policies", api.ListIAMPolicies).Methods("GET")
+
 	// S3 Buckets
 	r.HandleFunc("/api/s3/buckets", api.ListS3Buckets).Methods("GET")
 	r.HandleFunc("/api/s3/buckets", api.CreateS3Bucket).Methods("POST")

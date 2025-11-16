@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/group"
+	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/policy"
 	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/user"
 	"github.com/gorilla/mux"
 )
@@ -437,6 +438,26 @@ func ListUserGroups(w http.ResponseWriter, r *http.Request) {
 
 	groups := group.ListUserGroupsModel(username)
 	respondJSON(w, http.StatusOK, map[string]interface{}{"username": username, "groups": groups})
+}
+
+// ListIAMPolicies lists all IAM policies
+func ListIAMPolicies(w http.ResponseWriter, r *http.Request) {
+	// Get scope from query parameter (All, AWS, or Local)
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		scope = "All"
+	}
+
+	policies, err := policy.ListPoliciesModel(scope)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"policies": policies,
+		"count":    len(policies),
+	})
 }
 
 // ============ HELPER FUNCTIONS ============
