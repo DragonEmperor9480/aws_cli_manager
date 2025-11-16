@@ -78,6 +78,35 @@ class ApiService {
     }
   }
 
+  static Future<List<dynamic>> checkMultipleUserDependencies(List<String> usernames) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/batch/dependencies'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'usernames': usernames}),
+    );
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['dependencies'] ?? [];
+    }
+    throw Exception('Failed to check dependencies');
+  }
+
+  static Future<Map<String, dynamic>> deleteMultipleIAMUsers(List<Map<String, dynamic>> users) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/batch/delete'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'users': users}),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete users');
+    }
+  }
+
   // IAM Groups
   static Future<List<dynamic>> listIAMGroups() async {
     final response = await http.get(Uri.parse('$baseUrl/iam/groups'));

@@ -165,6 +165,81 @@ func CheckUserDependencies(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, deps)
 }
 
+// CheckMultipleUserDependencies checks dependencies for multiple users in parallel
+func CheckMultipleUserDependencies(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Usernames []string `json:"usernames"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(req.Usernames) == 0 {
+		respondError(w, http.StatusBadRequest, "at least one username is required")
+		return
+	}
+
+	// Check dependencies in parallel
+	dependencies := user.CheckMultipleUserDependencies(req.Usernames)
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"dependencies": dependencies,
+	})
+}
+
+// DeleteMultipleIAMUsers deletes multiple IAM users in parallel
+func DeleteMultipleIAMUsers(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Users []struct {
+			Username string `json:"username"`
+			Force    bool   `json:"force"`
+		} `json:"users"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(req.Users) == 0 {
+		respondError(w, http.StatusBadRequest, "at least one user is required")
+		return
+	}
+
+	// Convert to model request format
+	requests := make([]user.UserDeletionRequest, len(req.Users))
+	for i, u := range req.Users {
+		requests[i] = user.UserDeletionRequest{
+			Username: u.Username,
+			Force:    u.Force,
+		}
+	}
+
+	// Delete users in parallel
+	results := user.DeleteMultipleIAMUsers(requests)
+
+	// Count successes and failures
+	successCount := 0
+	failureCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			failureCount++
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message":       "Batch user deletion completed",
+		"total":         len(results),
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"results":       results,
+	})
+}
+
 // DeleteIAMUser deletes an IAM user (with force flag to remove dependencies)
 func DeleteIAMUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
