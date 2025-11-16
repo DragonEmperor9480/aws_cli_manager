@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DragonEmperor9480/aws_cli_manager/service"
 	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	iamview "github.com/DragonEmperor9480/aws_cli_manager/views/iam/user"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -88,13 +87,4 @@ func CreateAccessKeyForUserModel(username string) {
 		fmt.Println(utils.Yellow + utils.Bold + "skipped saving credentials." + utils.Reset)
 	}
 
-	fmt.Println("Would you like to Share these credentials to user via mail? (y/n): ")
-	saveChoice, _ = reader.ReadString('\n')
-	saveChoice = strings.ToLower(strings.TrimSpace(saveChoice))
-	if saveChoice == "y" {
-		fmt.Println("Enter User mail:")
-		reciverMail, _ := reader.ReadString('\n')
-		reciverMail = strings.TrimSpace(reciverMail)
-		service.MailService(username, reciverMail, accessKey, secretAccessKey)
-	}
 }
