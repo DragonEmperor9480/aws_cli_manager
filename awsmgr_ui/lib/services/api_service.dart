@@ -68,6 +68,17 @@ class ApiService {
     throw Exception('Failed to check dependencies');
   }
 
+  static Future<List<dynamic>> getUserGroups(String username) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/iam/users/$username/groups'),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['groups'] ?? [];
+    }
+    throw Exception('Failed to get user groups');
+  }
+
   static Future<void> deleteIAMUser(String username, {bool force = false}) async {
     final url = force 
         ? '$baseUrl/iam/users/$username?force=true'

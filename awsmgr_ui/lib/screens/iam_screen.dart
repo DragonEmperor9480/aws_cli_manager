@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../widgets/aws_config_dialog.dart';
 import '../widgets/loading_animation.dart';
+import 'iam_user_profile_screen.dart';
 
 class IAMScreen extends StatefulWidget {
   const IAMScreen({super.key});
@@ -655,7 +656,14 @@ class _IAMScreenState extends State<IAMScreen>
                                       }
                                     });
                                   }
-                                : null,
+                                : () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => IAMUserProfileScreen(user: user),
+                                      ),
+                                    );
+                                  },
                             leading: _selectionMode
                                 ? Checkbox(
                                     value: isSelected,
