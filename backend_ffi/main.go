@@ -111,6 +111,9 @@ func StartBackend() int {
 	r.HandleFunc("/api/iam/users/{username}/access-keys", api.CreateAccessKey).Methods("POST")
 	r.HandleFunc("/api/iam/users/{username}/access-keys", api.ListAccessKeys).Methods("GET")
 	r.HandleFunc("/api/iam/users/{username}/groups", api.ListUserGroups).Methods("GET")
+	r.HandleFunc("/api/iam/users/{username}/policies", api.AttachUserPolicy).Methods("POST")
+	r.HandleFunc("/api/iam/users/{username}/policies/sync", api.SyncUserPolicies).Methods("POST")
+	r.HandleFunc("/api/iam/users/policies/batch", api.AttachMultipleUserPolicies).Methods("POST")
 
 	// IAM Groups
 	r.HandleFunc("/api/iam/groups", api.ListIAMGroups).Methods("GET")

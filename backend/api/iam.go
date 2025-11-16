@@ -460,6 +460,94 @@ func ListIAMPolicies(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AttachUserPolicy attaches a single policy to a user
+func AttachUserPolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"]
+
+	var req struct {
+		PolicyArn string `json:"policy_arn"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.PolicyArn == "" {
+		respondError(w, http.StatusBadRequest, "policy_arn is required")
+		return
+	}
+
+	if err := policy.AttachUserPolicy(username, req.PolicyArn); err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message":    "Policy attached successfully",
+		"username":   username,
+		"policy_arn": req.PolicyArn,
+	})
+}
+
+// AttachMultipleUserPolicies attaches multiple policies to users in parallel
+func AttachMultipleUserPolicies(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Attachments []policy.AttachPolicyRequest `json:"attachments"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(req.Attachments) == 0 {
+		respondError(w, http.StatusBadRequest, "at least one attachment is required")
+		return
+	}
+
+	results := policy.AttachMultiplePolicies(req.Attachments)
+
+	successCount := 0
+	failureCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			failureCount++
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message":       "Batch policy attachment completed",
+		"total":         len(results),
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"results":       results,
+	})
+}
+
+// SyncUserPolicies synchronizes user policies (attach new, detach removed)
+func SyncUserPolicies(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"]
+
+	var req struct {
+		DesiredArns []string `json:"desired_arns"`
+		CurrentArns []string `json:"current_arns"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	result := policy.SyncUserPolicies(username, req.DesiredArns, req.CurrentArns)
+
+	respondJSON(w, http.StatusOK, result)
+}
+
 // ============ HELPER FUNCTIONS ============
 
 func parseTabSeparated(output string, fields []string) []map[string]string {
