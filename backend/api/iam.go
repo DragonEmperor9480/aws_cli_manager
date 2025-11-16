@@ -8,6 +8,8 @@ import (
 	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/group"
 	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/policy"
 	"github.com/DragonEmperor9480/aws_cli_manager/models/iam/user"
+	"github.com/DragonEmperor9480/aws_cli_manager/service"
+	"github.com/DragonEmperor9480/aws_cli_manager/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -546,6 +548,56 @@ func SyncUserPolicies(w http.ResponseWriter, r *http.Request) {
 	result := policy.SyncUserPolicies(username, req.DesiredArns, req.CurrentArns)
 
 	respondJSON(w, http.StatusOK, result)
+}
+
+// SendUserCredentialsEmail sends IAM credentials to user via email
+func SendUserCredentialsEmail(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		Email      string `json:"email"`
+		ConsoleURL string `json:"console_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.Username == "" || req.Password == "" || req.Email == "" {
+		respondError(w, http.StatusBadRequest, "username, password, and email are required")
+		return
+	}
+
+	// Load email config from file
+	emailConfig, err := service.LoadEmailConfig()
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Email configuration not found. Please configure email settings first.")
+		return
+	}
+
+	// Get the proper console sign-in URL
+	consoleURL := req.ConsoleURL
+	if consoleURL == "" {
+		url, err := utils.GetConsoleSignInURL()
+		if err != nil {
+			// Fallback to generic console URL if we can't get account-specific URL
+			consoleURL = "https://console.aws.amazon.com/"
+		} else {
+			consoleURL = url
+		}
+	}
+
+	err = service.SendIAMCredentialsEmail(emailConfig, req.Username, req.Password, req.Email, consoleURL)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Credentials sent successfully",
+		"email":   req.Email,
+	})
 }
 
 // ============ HELPER FUNCTIONS ============

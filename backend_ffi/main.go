@@ -114,6 +114,7 @@ func StartBackend() int {
 	r.HandleFunc("/api/iam/users/{username}/policies", api.AttachUserPolicy).Methods("POST")
 	r.HandleFunc("/api/iam/users/{username}/policies/sync", api.SyncUserPolicies).Methods("POST")
 	r.HandleFunc("/api/iam/users/policies/batch", api.AttachMultipleUserPolicies).Methods("POST")
+	r.HandleFunc("/api/iam/users/send-credentials", api.SendUserCredentialsEmail).Methods("POST")
 
 	// IAM Groups
 	r.HandleFunc("/api/iam/groups", api.ListIAMGroups).Methods("GET")
@@ -154,6 +155,11 @@ func StartBackend() int {
 	// AWS Configuration
 	r.HandleFunc("/api/aws/config", api.GetAWSConfig).Methods("GET")
 	r.HandleFunc("/api/aws/config", api.ConfigureAWS).Methods("POST")
+
+	// Email Configuration
+	r.HandleFunc("/api/email/config", api.GetEmailConfig).Methods("GET")
+	r.HandleFunc("/api/email/config", api.SaveEmailConfig).Methods("POST")
+	r.HandleFunc("/api/email/config", api.DeleteEmailConfig).Methods("DELETE")
 
 	// Health
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
