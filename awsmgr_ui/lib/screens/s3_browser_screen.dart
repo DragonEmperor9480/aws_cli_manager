@@ -933,190 +933,198 @@ class _S3BrowserScreenState extends State<S3BrowserScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // Action Buttons Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _uploadFile,
-                                icon: const Icon(Icons.upload_file, size: 16),
-                                label: const Text('Upload', style: TextStyle(fontSize: 13)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.s3Color,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
+                        // Action Menu
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'upload':
+                                _uploadFile();
+                                break;
+                              case 'create_folder':
+                                _createFolder();
+                                break;
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'upload',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.upload_file, size: 20, color: AppTheme.s3Color),
+                                  SizedBox(width: 12),
+                                  Text('Upload File'),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _createFolder,
-                                icon: const Icon(Icons.create_new_folder, size: 16),
-                                label: const Text('Folder', style: TextStyle(fontSize: 13)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: AppTheme.s3Color,
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(color: AppTheme.s3Color.withValues(alpha: 0.3)),
-                                  ),
-                                ),
+                            const PopupMenuItem(
+                              value: 'create_folder',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.create_new_folder, size: 20, color: AppTheme.s3Color),
+                                  SizedBox(width: 12),
+                                  Text('Create Folder'),
+                                ],
                               ),
                             ),
                           ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.s3Color,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Actions',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+                              ],
+                            ),
+                          ),
                         ),
                         if (_currentPrefix.isEmpty) ...[
                           const SizedBox(height: 12),
                           const Divider(height: 1),
                           const SizedBox(height: 12),
-                          // Versioning Card with Toggle
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: _versioningEnabled
-                                    ? Colors.green.withValues(alpha: 0.3)
-                                    : Colors.grey.withValues(alpha: 0.3),
+                          // Bucket Settings Menu
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'versioning':
+                                  _toggleVersioning(!_versioningEnabled);
+                                  break;
+                                case 'mfa_delete':
+                                  if (_versioningEnabled) {
+                                    _toggleMFADelete(!_mfaDeleteEnabled);
+                                  }
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'versioning',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.history,
+                                      size: 20,
+                                      color: _versioningEnabled ? Colors.green : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Versioning', style: TextStyle(fontSize: 14)),
+                                          Text(
+                                            _versioningEnabled ? 'Enabled' : 'Disabled',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _versioningEnabled ? Colors.green : Colors.grey,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      _versioningEnabled ? Icons.check_circle : Icons.circle_outlined,
+                                      size: 18,
+                                      color: _versioningEnabled ? Colors.green : Colors.grey,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: _versioningEnabled
-                                        ? Colors.green.withValues(alpha: 0.1)
-                                        : Colors.grey.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Icon(
-                                    Icons.history,
-                                    size: 18,
-                                    color: _versioningEnabled ? Colors.green : Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Versioning',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey.shade700,
-                                        ),
+                              PopupMenuItem(
+                                value: 'mfa_delete',
+                                enabled: _versioningEnabled,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.security,
+                                      size: 20,
+                                      color: _versioningEnabled
+                                          ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
+                                          : Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'MFA Delete',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: _versioningEnabled ? Colors.black : Colors.grey.shade400,
+                                            ),
+                                          ),
+                                          Text(
+                                            _versioningEnabled
+                                                ? (_mfaDeleteEnabled ? 'Enabled' : 'Disabled')
+                                                : 'Requires Versioning',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _versioningEnabled
+                                                  ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
+                                                  : Colors.grey.shade400,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        _versioningEnabled ? 'Enabled' : 'Disabled',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: _versioningEnabled ? Colors.green : Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    Icon(
+                                      _mfaDeleteEnabled ? Icons.check_circle : Icons.circle_outlined,
+                                      size: 18,
+                                      color: _versioningEnabled
+                                          ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
+                                          : Colors.grey.shade300,
+                                    ),
+                                  ],
                                 ),
-                                if (_loadingVersioning)
-                                  const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                else
-                                  Switch(
-                                    value: _versioningEnabled,
-                                    onChanged: _toggleVersioning,
-                                    activeColor: Colors.green,
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // MFA Delete Card with Toggle
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: _versioningEnabled
-                                    ? (_mfaDeleteEnabled
-                                        ? Colors.orange.withValues(alpha: 0.3)
-                                        : Colors.grey.withValues(alpha: 0.3))
-                                    : Colors.grey.withValues(alpha: 0.3),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: _versioningEnabled
-                                        ? (_mfaDeleteEnabled
-                                            ? Colors.orange.withValues(alpha: 0.1)
-                                            : Colors.grey.withValues(alpha: 0.1))
-                                        : Colors.grey.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(6),
+                            ],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.settings, size: 18, color: Colors.grey.shade700),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Bucket Settings',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade700,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.security,
-                                    size: 18,
-                                    color: _versioningEnabled
-                                        ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
-                                        : Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'MFA Delete',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey.shade700,
-                                        ),
-                                      ),
-                                      Text(
-                                        _versioningEnabled
-                                            ? (_mfaDeleteEnabled ? 'Enabled' : 'Disabled')
-                                            : 'Requires Versioning',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: _versioningEnabled
-                                              ? (_mfaDeleteEnabled ? Colors.orange : Colors.grey)
-                                              : Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (_loadingVersioning)
-                                  const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                else
-                                  Switch(
-                                    value: _mfaDeleteEnabled,
-                                    onChanged: _versioningEnabled ? _toggleMFADelete : null,
-                                    activeColor: Colors.orange,
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_drop_down, size: 20, color: Colors.grey.shade700),
+                                  if (_loadingVersioning) ...[
+                                    const SizedBox(width: 8),
+                                    const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         ],

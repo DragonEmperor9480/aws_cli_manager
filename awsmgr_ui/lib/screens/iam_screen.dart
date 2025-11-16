@@ -497,64 +497,81 @@ class _IAMScreenState extends State<IAMScreen>
                 ],
               ),
               const SizedBox(height: 12),
-              // Action buttons row
+              // Action menu
               if (!_selectionMode)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _createUser,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Create'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _createMultipleUsers,
-                      icon: const Icon(Icons.group_add, size: 18),
-                      label: const Text('Batch Create'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'create':
+                        _createUser();
+                        break;
+                      case 'batch_create':
+                        _createMultipleUsers();
+                        break;
+                      case 'batch_delete':
                         setState(() {
                           _selectionMode = true;
                           _selectedUsers.clear();
                         });
-                      },
-                      icon: const Icon(Icons.delete_sweep, size: 18),
-                      label: const Text('Batch Delete'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'create',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_add, size: 20, color: Colors.blue),
+                          SizedBox(width: 12),
+                          Text('Create User'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'batch_create',
+                      child: Row(
+                        children: [
+                          Icon(Icons.group_add, size: 20, color: Colors.green),
+                          SizedBox(width: 12),
+                          Text('Batch Create Users'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'batch_delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_sweep, size: 20, color: Colors.red),
+                          SizedBox(width: 12),
+                          Text('Batch Delete Users'),
+                        ],
                       ),
                     ),
                   ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Actions',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+                      ],
+                    ),
+                  ),
                 )
               else
                 Row(
