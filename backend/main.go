@@ -48,6 +48,7 @@ func main() {
 	// IAM Users
 	r.HandleFunc("/api/iam/users", api.ListIAMUsers).Methods("GET")
 	r.HandleFunc("/api/iam/users", api.CreateIAMUser).Methods("POST")
+	r.HandleFunc("/api/iam/users/batch", api.CreateMultipleIAMUsers).Methods("POST")
 	r.HandleFunc("/api/iam/users/{username}/dependencies", api.CheckUserDependencies).Methods("GET")
 	r.HandleFunc("/api/iam/users/{username}", api.DeleteIAMUser).Methods("DELETE")
 	r.HandleFunc("/api/iam/users/{username}/password", api.SetUserPassword).Methods("POST")

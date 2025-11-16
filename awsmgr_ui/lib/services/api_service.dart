@@ -15,6 +15,23 @@ class ApiService {
     throw Exception('Failed to load users');
   }
 
+  static Future<Map<String, dynamic>> createMultipleIAMUsers(
+    List<Map<String, dynamic>> users,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/batch'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'users': users}),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to create users');
+    }
+  }
+
   static Future<void> createIAMUser(
     String username, {
     String? password,

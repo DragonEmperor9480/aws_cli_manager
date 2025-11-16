@@ -22,6 +22,59 @@ func ListIAMUsers(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{"users": users})
 }
 
+// CreateMultipleIAMUsers creates multiple IAM users in parallel
+func CreateMultipleIAMUsers(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Users []struct {
+			Username     string `json:"username"`
+			Password     string `json:"password"`
+			RequireReset bool   `json:"require_reset"`
+		} `json:"users"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(req.Users) == 0 {
+		respondError(w, http.StatusBadRequest, "at least one user is required")
+		return
+	}
+
+	// Convert to model request format
+	requests := make([]user.UserCreationRequest, len(req.Users))
+	for i, u := range req.Users {
+		requests[i] = user.UserCreationRequest{
+			Username:     u.Username,
+			Password:     u.Password,
+			RequireReset: u.RequireReset,
+		}
+	}
+
+	// Create users in parallel
+	results := user.CreateMultipleIAMUsers(requests)
+
+	// Count successes and failures
+	successCount := 0
+	failureCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			failureCount++
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"message":       "Batch user creation completed",
+		"total":         len(results),
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"results":       results,
+	})
+}
+
 // CreateIAMUser creates a new IAM user with optional password
 func CreateIAMUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
