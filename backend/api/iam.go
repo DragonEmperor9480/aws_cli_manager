@@ -22,10 +22,12 @@ func ListIAMUsers(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{"users": users})
 }
 
-// CreateIAMUser creates a new IAM user
+// CreateIAMUser creates a new IAM user with optional password
 func CreateIAMUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Username string `json:"username"`
+		Username     string `json:"username"`
+		Password     string `json:"password"`      // Optional
+		RequireReset bool   `json:"require_reset"` // Only used if password is provided
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -38,8 +40,62 @@ func CreateIAMUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.CreateIAMUser(req.Username)
-	respondJSON(w, http.StatusOK, map[string]string{"message": "User created", "username": req.Username})
+	// If password is provided, use combined function
+	if req.Password != "" {
+		userStatus, passwordStatus, err := user.CreateIAMUserWithPassword(req.Username, req.Password, req.RequireReset)
+
+		// Check user creation status first
+		switch userStatus {
+		case user.UserAlreadyExists:
+			respondError(w, http.StatusConflict, "User '"+req.Username+"' already exists")
+			return
+		case user.UserCreationError:
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// User created, check password status
+		switch passwordStatus {
+		case user.PasswordUserNotFound:
+			respondError(w, http.StatusNotFound, "User not found after creation")
+			return
+		case user.PasswordPolicyViolation:
+			respondError(w, http.StatusBadRequest, "Password does not meet AWS policy requirements")
+			return
+		case user.PasswordAlreadyExists:
+			respondError(w, http.StatusConflict, "Password already exists for user")
+			return
+		case user.PasswordCreationError:
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		case user.PasswordCreatedSuccess:
+			respondJSON(w, http.StatusOK, map[string]interface{}{
+				"message":       "User created with password",
+				"username":      req.Username,
+				"password_set":  true,
+				"require_reset": req.RequireReset,
+			})
+			return
+		}
+	}
+
+	// No password provided, just create user
+	status, err := user.CreateIAMUser(req.Username)
+
+	switch status {
+	case user.UserAlreadyExists:
+		respondError(w, http.StatusConflict, "User '"+req.Username+"' already exists")
+		return
+	case user.UserCreationError:
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	case user.UserCreatedSuccess:
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"message":      "User created",
+			"username":     req.Username,
+			"password_set": false,
+		})
+	}
 }
 
 // CheckUserDependencies checks what dependencies a user has before deletion
@@ -92,7 +148,8 @@ func SetUserPassword(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	var req struct {
-		Password string `json:"password"`
+		Password     string `json:"password"`
+		RequireReset bool   `json:"require_reset"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -100,8 +157,33 @@ func SetUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.SetInitialUserPasswordModel(username, req.Password)
-	respondJSON(w, http.StatusOK, map[string]string{"message": "Password set", "username": username})
+	if req.Password == "" {
+		respondError(w, http.StatusBadRequest, "password is required")
+		return
+	}
+
+	status, err := user.SetInitialUserPasswordModel(username, req.Password, req.RequireReset)
+
+	switch status {
+	case user.PasswordUserNotFound:
+		respondError(w, http.StatusNotFound, "User '"+username+"' does not exist")
+		return
+	case user.PasswordPolicyViolation:
+		respondError(w, http.StatusBadRequest, "Password does not meet AWS policy requirements")
+		return
+	case user.PasswordAlreadyExists:
+		respondError(w, http.StatusConflict, "Password already exists for user '"+username+"'")
+		return
+	case user.PasswordCreationError:
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	case user.PasswordCreatedSuccess:
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"message":       "Password set successfully",
+			"username":      username,
+			"require_reset": req.RequireReset,
+		})
+	}
 }
 
 // UpdateUserPassword updates user password

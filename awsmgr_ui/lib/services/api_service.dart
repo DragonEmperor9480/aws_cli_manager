@@ -15,14 +15,29 @@ class ApiService {
     throw Exception('Failed to load users');
   }
 
-  static Future<void> createIAMUser(String username) async {
+  static Future<void> createIAMUser(
+    String username, {
+    String? password,
+    bool requireReset = false,
+  }) async {
+    final body = <String, dynamic>{
+      'username': username,
+    };
+    
+    if (password != null && password.isNotEmpty) {
+      body['password'] = password;
+      body['require_reset'] = requireReset;
+    }
+    
     final response = await http.post(
       Uri.parse('$baseUrl/iam/users'),
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'username': username}),
+      body: json.encode(body),
     );
+    
     if (response.statusCode != 200) {
-      throw Exception('Failed to create user');
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to create user');
     }
   }
 
