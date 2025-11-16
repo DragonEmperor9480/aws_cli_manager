@@ -56,6 +56,77 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
     );
   }
 
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _showAttachPoliciesDialog() async {
+    final username = widget.user['username'];
+    
+    // Get currently attached policy names (not ARNs)
+    final currentPolicyNames = (_dependencies?['managed_policies'] as List?)
+        ?.map((p) => p.toString())
+        .toList() ?? [];
+    
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AttachPoliciesDialog(
+        username: username,
+        currentPolicyNames: currentPolicyNames,
+      ),
+    );
+
+    if (result != null) {
+      final selectedArns = result['selected_arns'] as List<String>;
+      final currentArns = result['current_arns'] as List<String>;
+
+      setState(() => _loading = true);
+      try {
+        final response = await ApiService.syncUserPolicies(
+          username,
+          selectedArns,
+          currentArns,
+        );
+
+        final attachedCount = response['attached_count'] ?? 0;
+        final detachedCount = response['detached_count'] ?? 0;
+        final success = response['success'] ?? false;
+
+        if (success) {
+          if (attachedCount > 0 && detachedCount > 0) {
+            _showSuccess('Attached $attachedCount, detached $detachedCount ${attachedCount + detachedCount == 1 ? 'policy' : 'policies'}');
+          } else if (attachedCount > 0) {
+            _showSuccess('Attached $attachedCount ${attachedCount == 1 ? 'policy' : 'policies'}');
+          } else if (detachedCount > 0) {
+            _showSuccess('Detached $detachedCount ${detachedCount == 1 ? 'policy' : 'policies'}');
+          } else {
+            _showSuccess('No changes needed');
+          }
+        } else {
+          _showError('Some operations failed. Check details.');
+        }
+
+        await _loadUserDetails();
+      } catch (e) {
+        _showError('Failed to sync policies: $e');
+      } finally {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final username = widget.user['username'] ?? '';
@@ -66,6 +137,13 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
       appBar: AppBar(
         title: Text(username),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.policy),
+            tooltip: 'Attach Policies',
+            onPressed: () => _showAttachPoliciesDialog(),
+          ),
+        ],
       ),
       body: _loading
           ? const LoadingAnimation(message: 'Loading user details...')
@@ -380,6 +458,364 @@ class _IAMUserProfileScreenState extends State<IAMUserProfileScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// Attach Policies Dialog
+class AttachPoliciesDialog extends StatefulWidget {
+  final String username;
+  final List<String> currentPolicyNames;
+
+  const AttachPoliciesDialog({
+    super.key,
+    required this.username,
+    this.currentPolicyNames = const [],
+  });
+
+  @override
+  State<AttachPoliciesDialog> createState() => _AttachPoliciesDialogState();
+}
+
+class _AttachPoliciesDialogState extends State<AttachPoliciesDialog> {
+  List<dynamic> _policies = [];
+  List<dynamic> _filteredPolicies = [];
+  final Set<String> _selectedPolicyArns = {};
+  final Set<String> _attachedPolicyNames = {};
+  final List<String> _currentPolicyArns = [];
+  bool _loading = true;
+  String _searchQuery = '';
+  String _scopeFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    // Store currently attached policy names
+    _attachedPolicyNames.addAll(widget.currentPolicyNames);
+    _loadPolicies();
+  }
+
+  Future<void> _loadPolicies() async {
+    setState(() => _loading = true);
+    try {
+      final policies = await ApiService.listIAMPolicies(scope: _scopeFilter);
+      setState(() {
+        _policies = policies;
+        
+        // Pre-select policies that are already attached (match by name)
+        // Also build the current ARNs list
+        _currentPolicyArns.clear();
+        for (var policy in _policies) {
+          final policyName = policy['policy_name']?.toString() ?? '';
+          final policyArn = policy['policy_arn']?.toString() ?? '';
+          if (_attachedPolicyNames.contains(policyName)) {
+            _selectedPolicyArns.add(policyArn);
+            _currentPolicyArns.add(policyArn);
+          }
+        }
+        
+        _filterPolicies();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load policies: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _filterPolicies() {
+    setState(() {
+      _filteredPolicies = _policies.where((policy) {
+        final policyName = (policy['policy_name'] ?? '').toString().toLowerCase();
+        final policyArn = (policy['policy_arn'] ?? '').toString().toLowerCase();
+        final query = _searchQuery.toLowerCase();
+        return policyName.contains(query) || policyArn.contains(query);
+      }).toList();
+
+      // Sort: attached policies first, then by name
+      _filteredPolicies.sort((a, b) {
+        final aName = (a['policy_name'] ?? '').toString();
+        final bName = (b['policy_name'] ?? '').toString();
+        final aAttached = _attachedPolicyNames.contains(aName);
+        final bAttached = _attachedPolicyNames.contains(bName);
+
+        // If one is attached and the other isn't, attached comes first
+        if (aAttached && !bAttached) return -1;
+        if (!aAttached && bAttached) return 1;
+
+        // Otherwise sort by policy name
+        return aName.compareTo(bName);
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 700,
+        height: 600,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.policy, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Attach Policies',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Select policies to attach to ${widget.username}',
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search and Filter
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search policies...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      _searchQuery = value;
+                      _filterPolicies();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Scope: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'All', label: Text('All')),
+                          ButtonSegment(value: 'AWS', label: Text('AWS')),
+                          ButtonSegment(value: 'Local', label: Text('Custom')),
+                        ],
+                        selected: {_scopeFilter},
+                        onSelectionChanged: (Set<String> selected) {
+                          setState(() => _scopeFilter = selected.first);
+                          _loadPolicies();
+                        },
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${_selectedPolicyArns.length} selected',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Policies List
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredPolicies.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.policy_outlined, size: 64, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isEmpty ? 'No policies found' : 'No matching policies',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredPolicies.length,
+                          itemBuilder: (context, index) {
+                            final policy = _filteredPolicies[index];
+                            final policyArn = policy['policy_arn']?.toString() ?? '';
+                            final policyName = policy['policy_name']?.toString() ?? '';
+                            final isAWSManaged = policy['is_aws_managed'] == true;
+                            final isSelected = _selectedPolicyArns.contains(policyArn);
+                            final isAlreadyAttached = _attachedPolicyNames.contains(policyName);
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              color: isSelected ? Colors.blue.shade50 : null,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: isSelected
+                                    ? BorderSide(color: Colors.blue, width: 2)
+                                    : BorderSide.none,
+                              ),
+                              child: CheckboxListTile(
+                                value: isSelected,
+                                onChanged: (value) {
+                                  setState(() {
+                                    if (value == true) {
+                                      _selectedPolicyArns.add(policyArn);
+                                    } else {
+                                      _selectedPolicyArns.remove(policyArn);
+                                    }
+                                  });
+                                },
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        policyName,
+                                        style: const TextStyle(fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (isAlreadyAttached)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade100,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'Attached',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.green.shade900,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    if (isAWSManaged) ...[
+                                      const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade100,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'AWS',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.orange.shade900,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  policyArn,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                dense: true,
+                              ),
+                            );
+                          },
+                        ),
+            ),
+
+            // Footer
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context, {
+                          'selected_arns': _selectedPolicyArns.toList(),
+                          'current_arns': _currentPolicyArns,
+                        });
+                      },
+                      icon: const Icon(Icons.sync, size: 18),
+                      label: Text('Apply (${_selectedPolicyArns.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

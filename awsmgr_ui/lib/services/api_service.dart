@@ -79,6 +79,57 @@ class ApiService {
     throw Exception('Failed to get user groups');
   }
 
+  static Future<void> attachUserPolicy(String username, String policyArn) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/$username/policies'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'policy_arn': policyArn}),
+    );
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to attach policy');
+    }
+  }
+
+  static Future<Map<String, dynamic>> attachMultipleUserPolicies(
+    List<Map<String, String>> attachments,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/policies/batch'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'attachments': attachments}),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to attach policies');
+    }
+  }
+
+  static Future<Map<String, dynamic>> syncUserPolicies(
+    String username,
+    List<String> desiredArns,
+    List<String> currentArns,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/users/$username/policies/sync'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'desired_arns': desiredArns,
+        'current_arns': currentArns,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final error = json.decode(response.body);
+      throw Exception(error['error'] ?? 'Failed to sync policies');
+    }
+  }
+
   static Future<void> deleteIAMUser(String username, {bool force = false}) async {
     final url = force 
         ? '$baseUrl/iam/users/$username?force=true'
@@ -116,6 +167,19 @@ class ApiService {
       final error = json.decode(response.body);
       throw Exception(error['error'] ?? 'Failed to delete users');
     }
+  }
+
+  // IAM Policies
+  static Future<List<dynamic>> listIAMPolicies({String scope = 'All'}) async {
+    final uri = Uri.parse('$baseUrl/iam/policies').replace(
+      queryParameters: {'scope': scope},
+    );
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['policies'] ?? [];
+    }
+    throw Exception('Failed to load policies');
   }
 
   // IAM Groups
