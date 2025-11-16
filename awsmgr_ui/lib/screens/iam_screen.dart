@@ -5,6 +5,7 @@ import '../services/email_config_service.dart';
 import '../widgets/aws_config_dialog.dart';
 import '../widgets/loading_animation.dart';
 import 'iam_user_profile_screen.dart';
+import 'iam_group_profile_screen.dart';
 
 class IAMScreen extends StatefulWidget {
   const IAMScreen({super.key});
@@ -791,42 +792,90 @@ class _IAMScreenState extends State<IAMScreen>
               bottom: BorderSide(color: Colors.green.shade100),
             ),
           ),
-          child: Row(
+          child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.group, color: Colors.green.shade700),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'IAM Groups',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    Text(
-                      '${_groups.length} groups found',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    child: Icon(Icons.group, color: Colors.green.shade700),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'IAM Groups',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          '${_groups.length} groups',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadData,
+                    tooltip: 'Refresh',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadData,
-                tooltip: 'Refresh',
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
+              const SizedBox(height: 12),
+              // Group Actions Menu
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'create') {
+                    _createGroup();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'create',
+                    child: Row(
+                      children: [
+                        Icon(Icons.group_add, size: 20, color: Colors.green),
+                        SizedBox(width: 12),
+                        Text('Create Group'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
                     borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Actions',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_drop_down, color: Colors.white, size: 20),
+                    ],
                   ),
                 ),
               ),
@@ -867,6 +916,7 @@ class _IAMScreenState extends State<IAMScreen>
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(16),
+                            onTap: () => _showGroupDetails(group),
                             leading: Container(
                               width: 50,
                               height: 50,
@@ -912,6 +962,18 @@ class _IAMScreenState extends State<IAMScreen>
                                 ),
                               ],
                             ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              color: Colors.red,
+                              tooltip: 'Delete group',
+                              onPressed: () => _deleteGroup(group['groupname'] ?? ''),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.red.shade50,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -921,12 +983,203 @@ class _IAMScreenState extends State<IAMScreen>
     );
   }
 
+  Future<void> _createGroup() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.group_add, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Create IAM Group'),
+          ],
+        ),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Group Name *',
+            hintText: 'Enter group name',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            prefixIcon: const Icon(Icons.group),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, controller.text),
+            icon: const Icon(Icons.add),
+            label: const Text('Create'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _operationInProgress = true);
+      try {
+        await ApiService.createIAMGroup(result);
+        _showSuccess('Group "$result" created successfully');
+        await _loadData();
+      } catch (e) {
+        _showError('Failed to create group: $e');
+      } finally {
+        setState(() => _operationInProgress = false);
+      }
+    }
+  }
+
+  Future<void> _deleteGroup(String groupname) async {
+    // Check dependencies first
+    setState(() => _operationInProgress = true);
+    late Map<String, dynamic> dependencies;
+    
+    try {
+      dependencies = await ApiService.checkGroupDependencies(groupname);
+    } catch (e) {
+      setState(() => _operationInProgress = false);
+      _showError('Failed to check group dependencies: $e');
+      return;
+    }
+    
+    setState(() => _operationInProgress = false);
+
+    final users = dependencies['users'] as List? ?? [];
+    final policies = dependencies['attached_policies'] as List? ?? [];
+    final hasDeps = users.isNotEmpty || policies.isNotEmpty;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(hasDeps ? Icons.warning : Icons.delete, 
+                 color: hasDeps ? Colors.orange : Colors.red),
+            const SizedBox(width: 8),
+            const Text('Delete Group'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete "$groupname"?'),
+              const SizedBox(height: 8),
+              if (hasDeps) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.info, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Group has dependencies:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (users.isNotEmpty) ...[
+                        const Text('Users:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ...users.map((u) => Text('  • $u')),
+                        const SizedBox(height: 4),
+                      ],
+                      if (policies.isNotEmpty) ...[
+                        const Text('Attached Policies:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ...policies.map((p) => Text('  • ${p.split('/').last}')),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'All dependencies will be removed automatically.',
+                  style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+              const SizedBox(height: 8),
+              const Text(
+                'This action cannot be undone.',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete),
+            label: Text(hasDeps ? 'Remove All & Delete' : 'Delete'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _operationInProgress = true);
+      try {
+        await ApiService.deleteIAMGroup(groupname, force: hasDeps);
+        _showSuccess('Group "$groupname" deleted successfully');
+        await _loadData();
+      } catch (e) {
+        _showError('Failed to delete group: $e');
+      } finally {
+        setState(() => _operationInProgress = false);
+      }
+    }
+  }
+
+  Future<void> _showGroupDetails(Map<String, dynamic> group) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => IAMGroupProfileScreen(group: group),
+      ),
+    );
+    
+    // Reload data in case changes were made
+    await _loadData();
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
 }
+
 
 
 // Create User Dialog with password validation

@@ -67,9 +67,13 @@ func main() {
 	r.HandleFunc("/api/iam/groups", api.ListIAMGroups).Methods("GET")
 	r.HandleFunc("/api/iam/groups", api.CreateIAMGroup).Methods("POST")
 	r.HandleFunc("/api/iam/groups/{groupname}", api.DeleteIAMGroup).Methods("DELETE")
+	r.HandleFunc("/api/iam/groups/{groupname}/dependencies", api.CheckGroupDependencies).Methods("GET")
 	r.HandleFunc("/api/iam/groups/{groupname}/users", api.ListUsersInGroup).Methods("GET")
 	r.HandleFunc("/api/iam/groups/{groupname}/users", api.AddUserToGroup).Methods("POST")
 	r.HandleFunc("/api/iam/groups/{groupname}/users/{username}", api.RemoveUserFromGroup).Methods("DELETE")
+	r.HandleFunc("/api/iam/groups/{groupname}/policies", api.ListGroupPolicies).Methods("GET")
+	r.HandleFunc("/api/iam/groups/{groupname}/policies", api.AttachGroupPolicy).Methods("POST")
+	r.HandleFunc("/api/iam/groups/{groupname}/policies/{policy_arn:.*}", api.DetachGroupPolicy).Methods("DELETE")
 
 	// IAM Policies
 	r.HandleFunc("/api/iam/policies", api.ListIAMPolicies).Methods("GET")

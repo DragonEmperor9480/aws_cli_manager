@@ -392,8 +392,34 @@ func DeleteIAMGroup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	groupname := vars["groupname"]
 
-	group.DeleteGroupModel(groupname)
+	// Check if force delete is requested
+	force := r.URL.Query().Get("force") == "true"
+
+	if force {
+		err := group.ForceDeleteGroup(groupname)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	} else {
+		group.DeleteGroupModel(groupname)
+	}
+
 	respondJSON(w, http.StatusOK, map[string]string{"message": "Group deleted", "groupname": groupname})
+}
+
+// CheckGroupDependencies checks if a group has dependencies
+func CheckGroupDependencies(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	groupname := vars["groupname"]
+
+	deps, err := group.CheckGroupDependencies(groupname)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, deps)
 }
 
 // AddUserToGroup adds a user to a group
@@ -440,6 +466,63 @@ func ListUserGroups(w http.ResponseWriter, r *http.Request) {
 
 	groups := group.ListUserGroupsModel(username)
 	respondJSON(w, http.StatusOK, map[string]interface{}{"username": username, "groups": groups})
+}
+
+// AttachGroupPolicy attaches a policy to a group
+func AttachGroupPolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	groupname := vars["groupname"]
+
+	var req struct {
+		PolicyArn string `json:"policy_arn"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.PolicyArn == "" {
+		respondError(w, http.StatusBadRequest, "policy_arn is required")
+		return
+	}
+
+	err := group.AttachGroupPolicy(groupname, req.PolicyArn)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "Policy attached", "groupname": groupname, "policy_arn": req.PolicyArn})
+}
+
+// DetachGroupPolicy detaches a policy from a group
+func DetachGroupPolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	groupname := vars["groupname"]
+	policyArn := vars["policy_arn"]
+
+	err := group.DetachGroupPolicy(groupname, policyArn)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "Policy detached", "groupname": groupname, "policy_arn": policyArn})
+}
+
+// ListGroupPolicies lists all policies attached to a group
+func ListGroupPolicies(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	groupname := vars["groupname"]
+
+	policies, err := group.ListGroupPolicies(groupname)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{"groupname": groupname, "policies": policies})
 }
 
 // ListIAMPolicies lists all IAM policies

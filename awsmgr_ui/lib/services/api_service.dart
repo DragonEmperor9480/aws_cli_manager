@@ -303,6 +303,67 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> checkGroupDependencies(String groupname) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/iam/groups/$groupname/dependencies'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to check group dependencies');
+  }
+
+  static Future<void> deleteIAMGroup(String groupname, {bool force = false}) async {
+    final uri = Uri.parse('$baseUrl/iam/groups/$groupname${force ? '?force=true' : ''}');
+    final response = await http.delete(uri);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete group');
+    }
+  }
+
+  static Future<void> addUserToGroup(String groupname, String username) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/groups/$groupname/users'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'username': username}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to add user to group');
+    }
+  }
+
+  static Future<List<dynamic>> listGroupPolicies(String groupname) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/iam/groups/$groupname/policies'),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['policies'] ?? [];
+    }
+    throw Exception('Failed to list group policies');
+  }
+
+  static Future<void> attachGroupPolicy(String groupname, String policyArn) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/iam/groups/$groupname/policies'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'policy_arn': policyArn}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to attach policy to group');
+    }
+  }
+
+  static Future<void> detachGroupPolicy(String groupname, String policyArn) async {
+    final encodedArn = Uri.encodeComponent(policyArn);
+    final response = await http.delete(
+      Uri.parse('$baseUrl/iam/groups/$groupname/policies/$encodedArn'),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to detach policy from group');
+    }
+  }
+
   // S3 Buckets
   static Future<String> listS3Buckets() async {
     final response = await http.get(Uri.parse('$baseUrl/s3/buckets'));
