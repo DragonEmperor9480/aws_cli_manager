@@ -1,0 +1,14 @@
+{
+    "tui": {
+        "version": ""
+    },
+    "linux":{
+        "version":""
+    },
+    "windows":{
+        "version":""
+    },
+    "android":{
+        "version":""
+    }
+}
