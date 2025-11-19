@@ -6,6 +6,7 @@ import '../services/email_config_service.dart';
 import '../services/backend_service.dart';
 import '../services/api_service.dart';
 import 'credentials_setup_screen.dart';
+import 'about_screen.dart';
 import '../widgets/email_config_dialog.dart';
 import '../widgets/mfa_device_dialog.dart';
 import '../theme/app_theme.dart';
@@ -25,8 +26,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _region;
   String? _senderEmail;
   String? _mfaDeviceName;
-  String _version = 'Loading...';
-  String _osName = 'Loading...';
 
   @override
   void initState() {
@@ -34,7 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadCredentialStatus();
     _loadEmailConfigStatus();
     _loadMFADeviceStatus();
-    _loadVersionInfo();
   }
 
   Future<void> _loadCredentialStatus() async {
@@ -88,28 +86,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('Error loading MFA device: $e');
       setState(() => _hasMFADevice = false);
-    }
-  }
-
-  Future<void> _loadVersionInfo() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${BackendService.baseUrl}/api/version'),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _version = data['version'] ?? 'Unknown';
-          _osName = data['os_name'] ?? 'Unknown';
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading version: $e');
-      setState(() {
-        _version = '1.0.0';
-        _osName = 'Unknown';
-      });
     }
   }
 
@@ -358,7 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // About Section
                 _buildSectionHeader('About'),
                 const SizedBox(height: 16),
-                _buildAboutCard(),
+                _buildAboutNavigationCard(),
               ],
             ),
     );
@@ -698,89 +674,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAboutCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+  Widget _buildAboutNavigationCard() {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AboutScreen(),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryPurple, AppTheme.primaryBlue],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.info_outline,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'AWS Manager',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Version $_version',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.primaryPurple.withOpacity(0.1),
+              AppTheme.primaryBlue.withOpacity(0.1),
             ],
           ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.computer, size: 16, color: AppTheme.textSecondary),
-              const SizedBox(width: 8),
-              Text(
-                _osName,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.primaryPurple.withOpacity(0.3),
+            width: 1,
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Manage your AWS infrastructure with ease',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppTheme.primaryPurple, AppTheme.primaryBlue],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPurple.withOpacity(0.3),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.info_outline,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'About AWS Manager',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Learn more about this app',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 18,
+              color: AppTheme.primaryPurple,
+            ),
+          ],
+        ),
       ),
     );
   }
