@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../services/cloudwatch_service.dart';
 import '../theme/app_theme.dart';
 
@@ -413,19 +414,288 @@ class _LiveLogViewerScreenState extends State<LiveLogViewerScreen> {
               : isMatch
                   ? Colors.yellow.shade900.withValues(alpha: 0.3)
                   : Colors.transparent,
-          child: _searchQuery.isNotEmpty && isMatch
-              ? _buildHighlightedText(log.message, log.color, isCurrentMatch)
-              : SelectableText(
-                  log.message,
-                  style: TextStyle(
-                    color: _getColorFromString(log.color),
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                  ),
-                ),
+          child: _buildLogContent(log, isMatch, isCurrentMatch),
         );
       },
     );
+  }
+
+  Widget _buildLogContent(LogEntry log, bool isMatch, bool isCurrentMatch) {
+    // Try to detect and parse JSON
+    final jsonData = _tryParseJson(log.message);
+    
+    if (jsonData != null) {
+      // It's JSON, render with syntax highlighting
+      return _buildJsonLog(jsonData, log.color, isMatch, isCurrentMatch);
+    } else if (_searchQuery.isNotEmpty && isMatch) {
+      // Regular text with search highlighting
+      return _buildHighlightedText(log.message, log.color, isCurrentMatch);
+    } else {
+      // Regular text
+      return SelectableText(
+        log.message,
+        style: TextStyle(
+          color: _getColorFromString(log.color),
+          fontFamily: 'monospace',
+          fontSize: 13,
+        ),
+      );
+    }
+  }
+
+  Map<String, dynamic>? _tryParseJson(String text) {
+    // Try to find JSON in the text - look for { or [ anywhere in the line
+    final jsonStartIndex = text.indexOf('{');
+    final arrayStartIndex = text.indexOf('[');
+    
+    int startIndex = -1;
+    if (jsonStartIndex != -1 && arrayStartIndex != -1) {
+      startIndex = jsonStartIndex < arrayStartIndex ? jsonStartIndex : arrayStartIndex;
+    } else if (jsonStartIndex != -1) {
+      startIndex = jsonStartIndex;
+    } else if (arrayStartIndex != -1) {
+      startIndex = arrayStartIndex;
+    }
+    
+    if (startIndex == -1) {
+      return null;
+    }
+    
+    // Extract the JSON part
+    final jsonPart = text.substring(startIndex).trim();
+    
+    try {
+      final decoded = json.decode(jsonPart);
+      return {
+        'prefix': text.substring(0, startIndex),
+        'json': decoded,
+      };
+    } catch (e) {
+      // Not valid JSON, might be Go struct format like {Key:Value}
+      // Try to convert Go struct format to JSON
+      final goStructMatch = RegExp(r'\{([^}]+)\}').firstMatch(jsonPart);
+      if (goStructMatch != null) {
+        final structContent = goStructMatch.group(1)!;
+        final converted = _convertGoStructToJson(structContent);
+        if (converted != null) {
+          return {
+            'prefix': text.substring(0, startIndex),
+            'json': converted,
+          };
+        }
+      }
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _convertGoStructToJson(String goStruct) {
+    // Convert Go struct format like "Key:Value Key2:Value2" to JSON
+    try {
+      final result = <String, dynamic>{};
+      final pairs = goStruct.split(RegExp(r'\s+(?=[A-Z])'));
+      
+      for (final pair in pairs) {
+        final colonIndex = pair.indexOf(':');
+        if (colonIndex == -1) continue;
+        
+        final key = pair.substring(0, colonIndex).trim();
+        final value = pair.substring(colonIndex + 1).trim();
+        
+        if (key.isEmpty) continue;
+        
+        // Try to parse value as number
+        final numValue = num.tryParse(value);
+        if (numValue != null) {
+          result[key] = numValue;
+        } else if (value.toLowerCase() == 'true') {
+          result[key] = true;
+        } else if (value.toLowerCase() == 'false') {
+          result[key] = false;
+        } else if (value.toLowerCase() == 'null') {
+          result[key] = null;
+        } else {
+          result[key] = value;
+        }
+      }
+      
+      return result.isEmpty ? null : result;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Widget _buildJsonLog(Map<String, dynamic> data, String color, bool isMatch, bool isCurrentMatch) {
+    final prefix = data['prefix'] as String;
+    final jsonObj = data['json'];
+    final prettyJson = const JsonEncoder.withIndent('  ').convert(jsonObj);
+    
+    final spans = <TextSpan>[];
+    
+    // Add prefix (timestamp, log level, etc.) in original color
+    if (prefix.isNotEmpty) {
+      spans.add(TextSpan(
+        text: prefix,
+        style: TextStyle(
+          color: _getColorFromString(color),
+          fontFamily: 'monospace',
+          fontSize: 13,
+        ),
+      ));
+    }
+    
+    // Add newline before JSON for better formatting
+    if (prefix.isNotEmpty) {
+      spans.add(const TextSpan(text: '\n'));
+    }
+    
+    // Add JSON with syntax highlighting
+    if (_searchQuery.isNotEmpty && isMatch) {
+      spans.addAll(_buildHighlightedJsonSpans(prettyJson, isCurrentMatch));
+    } else {
+      spans.addAll(_buildJsonSpans(prettyJson, 0));
+    }
+    
+    return SelectableText.rich(
+      TextSpan(children: spans),
+    );
+  }
+
+  List<TextSpan> _buildJsonSpans(String json, int indent) {
+    final spans = <TextSpan>[];
+    final lines = json.split('\n');
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      spans.addAll(_parseJsonLine(line));
+      if (i < lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+    
+    return spans;
+  }
+
+  List<TextSpan> _parseJsonLine(String line) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(
+      r'("(?:[^"\\]|\\.)*")|'  // Strings
+      r'(\btrue\b|\bfalse\b|\bnull\b)|'  // Booleans and null
+      r'(-?\d+\.?\d*)|'  // Numbers
+      r'([{}[\],:])|'  // Structural characters
+      r'(\s+)'  // Whitespace
+    );
+    
+    int lastIndex = 0;
+    for (final match in regex.allMatches(line)) {
+      // Add any text before the match
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(
+          text: line.substring(lastIndex, match.start),
+          style: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'monospace',
+            fontSize: 13,
+          ),
+        ));
+      }
+      
+      final matchText = match.group(0)!;
+      Color textColor;
+      FontWeight? fontWeight;
+      
+      if (match.group(1) != null) {
+        // String (including keys)
+        if (matchText.endsWith('":')) {
+          // It's a key - use cyan/aqua color to distinguish from values
+          textColor = Colors.cyan.shade300;
+          fontWeight = FontWeight.bold;
+        } else {
+          // It's a string value - use green
+          textColor = Colors.green.shade300;
+        }
+      } else if (match.group(2) != null) {
+        // Boolean or null - use purple/magenta
+        textColor = Colors.purple.shade300;
+        fontWeight = FontWeight.bold;
+      } else if (match.group(3) != null) {
+        // Number
+        textColor = Colors.orange.shade300;
+      } else if (match.group(4) != null) {
+        // Structural characters
+        textColor = Colors.grey.shade400;
+      } else {
+        // Whitespace
+        textColor = Colors.white;
+      }
+      
+      spans.add(TextSpan(
+        text: matchText,
+        style: TextStyle(
+          color: textColor,
+          fontFamily: 'monospace',
+          fontSize: 13,
+          fontWeight: fontWeight,
+        ),
+      ));
+      
+      lastIndex = match.end;
+    }
+    
+    // Add any remaining text
+    if (lastIndex < line.length) {
+      spans.add(TextSpan(
+        text: line.substring(lastIndex),
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: 'monospace',
+          fontSize: 13,
+        ),
+      ));
+    }
+    
+    return spans;
+  }
+
+  List<TextSpan> _buildHighlightedJsonSpans(String json, bool isCurrentMatch) {
+    final query = _searchQuery.toLowerCase();
+    final jsonLower = json.toLowerCase();
+    
+    final spans = <TextSpan>[];
+    int start = 0;
+    
+    while (start < json.length) {
+      final index = jsonLower.indexOf(query, start);
+      if (index == -1) {
+        // No more matches, add remaining JSON with syntax highlighting
+        final remaining = json.substring(start);
+        spans.addAll(_parseJsonLine(remaining));
+        break;
+      }
+      
+      // Add JSON before match with syntax highlighting
+      if (index > start) {
+        final before = json.substring(start, index);
+        spans.addAll(_parseJsonLine(before));
+      }
+      
+      // Add highlighted match
+      spans.add(TextSpan(
+        text: json.substring(index, index + query.length),
+        style: TextStyle(
+          color: Colors.black,
+          backgroundColor: isCurrentMatch 
+              ? Colors.orange.shade400 
+              : Colors.yellow.shade600,
+          fontFamily: 'monospace',
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+      
+      start = index + query.length;
+    }
+    
+    return spans;
   }
 
   Widget _buildHighlightedText(String text, String color, bool isCurrentMatch) {
