@@ -151,7 +151,7 @@ func StartBackend() int {
 	r.HandleFunc("/api/s3/buckets/{bucketname}/objects", api.ListS3Objects).Methods("GET")
 
 	// CloudWatch
-	r.HandleFunc("/api/cloudwatch/logs/{loggroup}", api.GetCloudWatchLogs).Methods("GET")
+	r.HandleFunc("/api/cloudwatch/lambda/functions", api.ListLambdaFunctions).Methods("GET")
 	r.HandleFunc("/api/cloudwatch/lambda/{function}/logs", api.StreamLambdaLogs).Methods("GET")
 
 	// Settings
@@ -181,7 +181,7 @@ func StartBackend() int {
 		Addr:         "127.0.0.1:8080",
 		Handler:      corsMiddleware(r),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // Disable write timeout for SSE streaming
 	}
 
 	go func() {

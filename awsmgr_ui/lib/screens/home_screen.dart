@@ -3,10 +3,9 @@ import 'dart:math' as math;
 import 'iam_screen.dart';
 import 's3_screen.dart';
 import 'settings_screen.dart';
+import 'cloudwatch_screen.dart';
 import '../widgets/service_card.dart';
 import '../widgets/floating_particles.dart';
-import '../widgets/aws_config_dialog.dart';
-import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -156,6 +155,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         break;
       case '/s3':
         screen = const S3Screen();
+        break;
+      case '/cloudwatch':
+        screen = const CloudWatchScreen();
         break;
       case '/settings':
         screen = const SettingsScreen();
