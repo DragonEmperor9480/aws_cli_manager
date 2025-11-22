@@ -130,10 +130,10 @@ class _AboutScreenState extends State<AboutScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -177,7 +177,7 @@ class _AboutScreenState extends State<AboutScreen>
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryPurple.withOpacity(0.4),
+            color: AppTheme.primaryPurple.withValues(alpha: 0.4),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -199,13 +199,13 @@ class _AboutScreenState extends State<AboutScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.primaryPurple.withOpacity(0.1),
-                AppTheme.primaryBlue.withOpacity(0.1),
+                AppTheme.primaryPurple.withValues(alpha: 0.1),
+                AppTheme.primaryBlue.withValues(alpha: 0.1),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppTheme.primaryPurple.withOpacity(0.3),
+              color: AppTheme.primaryPurple.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -241,10 +241,10 @@ class _AboutScreenState extends State<AboutScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.successGreen.withOpacity(0.1),
+                  color: AppTheme.successGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.successGreen.withOpacity(0.3),
+                    color: AppTheme.successGreen.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -283,7 +283,7 @@ class _AboutScreenState extends State<AboutScreen>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -299,8 +299,8 @@ class _AboutScreenState extends State<AboutScreen>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppTheme.primaryPurple.withOpacity(0.2),
-                          AppTheme.primaryBlue.withOpacity(0.2),
+                          AppTheme.primaryPurple.withValues(alpha: 0.2),
+                          AppTheme.primaryBlue.withValues(alpha: 0.2),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(8),
@@ -430,12 +430,12 @@ class _AboutScreenState extends State<AboutScreen>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: (feature['color'] as Color).withOpacity(0.2),
+                  color: (feature['color'] as Color).withValues(alpha: 0.2),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -446,7 +446,7 @@ class _AboutScreenState extends State<AboutScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: (feature['color'] as Color).withOpacity(0.1),
+                      color: (feature['color'] as Color).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -497,13 +497,13 @@ class _AboutScreenState extends State<AboutScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.primaryPurple.withOpacity(0.05),
-            AppTheme.primaryBlue.withOpacity(0.05),
+            AppTheme.primaryPurple.withValues(alpha: 0.05),
+            AppTheme.primaryBlue.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.primaryPurple.withOpacity(0.1),
+          color: AppTheme.primaryPurple.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -573,7 +573,7 @@ class _AboutScreenState extends State<AboutScreen>
             '© 2025 AWS Manager',
             style: TextStyle(
               fontSize: 13,
-              color: AppTheme.textSecondary.withOpacity(0.7),
+              color: AppTheme.textSecondary.withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -601,10 +601,10 @@ class Particle {
     size = random.nextDouble() * 2 + 1;
 
     final colors = [
-      AppTheme.primaryPurple.withOpacity(0.3),
-      AppTheme.primaryBlue.withOpacity(0.3),
-      AppTheme.accentCyan.withOpacity(0.3),
-      AppTheme.accentPink.withOpacity(0.3),
+      AppTheme.primaryPurple.withValues(alpha: 0.3),
+      AppTheme.primaryBlue.withValues(alpha: 0.3),
+      AppTheme.accentCyan.withValues(alpha: 0.3),
+      AppTheme.accentPink.withValues(alpha: 0.3),
     ];
     color = colors[random.nextInt(colors.length)];
   }

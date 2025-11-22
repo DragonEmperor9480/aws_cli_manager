@@ -26,8 +26,8 @@ class ProgressDialog extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryPurple.withOpacity(0.1),
-              AppTheme.primaryBlue.withOpacity(0.1),
+              AppTheme.primaryPurple.withValues(alpha: 0.1),
+              AppTheme.primaryBlue.withValues(alpha: 0.1),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
@@ -46,7 +46,7 @@ class ProgressDialog extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryPurple.withOpacity(0.3),
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.3),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -219,8 +219,8 @@ class _AnimatedProgressDialogState extends State<AnimatedProgressDialog>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryPurple.withOpacity(0.1),
-              AppTheme.primaryBlue.withOpacity(0.1),
+              AppTheme.primaryPurple.withValues(alpha: 0.1),
+              AppTheme.primaryBlue.withValues(alpha: 0.1),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
@@ -241,7 +241,7 @@ class _AnimatedProgressDialogState extends State<AnimatedProgressDialog>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primaryPurple.withOpacity(0.3),
+                      color: AppTheme.primaryPurple.withValues(alpha: 0.3),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),

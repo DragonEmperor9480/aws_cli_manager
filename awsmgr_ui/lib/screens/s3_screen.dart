@@ -236,9 +236,9 @@ class _S3ScreenState extends State<S3Screen> {
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: AppTheme.s3Color.withOpacity(0.1),
+                color: AppTheme.s3Color.withValues(alpha: 0.1),
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.s3Color.withOpacity(0.2)),
+                  bottom: BorderSide(color: AppTheme.s3Color.withValues(alpha: 0.2)),
                 ),
               ),
               child: Row(
@@ -246,7 +246,7 @@ class _S3ScreenState extends State<S3Screen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.s3Color.withOpacity(0.2),
+                      color: AppTheme.s3Color.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.storage, color: AppTheme.s3Color),
@@ -355,7 +355,7 @@ class _S3ScreenState extends State<S3Screen> {
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             colors: [
-                                              AppTheme.s3Color.withOpacity(0.8),
+                                              AppTheme.s3Color.withValues(alpha: 0.8),
                                               AppTheme.s3Color,
                                             ],
                                           ),
@@ -403,7 +403,7 @@ class _S3ScreenState extends State<S3Screen> {
                                         tooltip: 'Delete bucket',
                                         onPressed: () => _deleteBucket(bucket.name),
                                         style: IconButton.styleFrom(
-                                          backgroundColor: AppTheme.errorRed.withOpacity(0.1),
+                                          backgroundColor: AppTheme.errorRed.withValues(alpha: 0.1),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
@@ -685,9 +685,9 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
-              color: AppTheme.s3Color.withOpacity(0.1),
+              color: AppTheme.s3Color.withValues(alpha: 0.1),
               border: Border(
-                bottom: BorderSide(color: AppTheme.s3Color.withOpacity(0.2)),
+                bottom: BorderSide(color: AppTheme.s3Color.withValues(alpha: 0.2)),
               ),
             ),
             child: Row(
@@ -695,7 +695,7 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppTheme.s3Color.withOpacity(0.2),
+                    color: AppTheme.s3Color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.folder_open, color: AppTheme.s3Color),
@@ -787,7 +787,7 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  color: object.iconColor.withOpacity(0.1),
+                                  color: object.iconColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -848,7 +848,7 @@ class _BucketObjectsScreenState extends State<BucketObjectsScreen> {
                                       tooltip: 'Download',
                                       onPressed: () => _downloadObject(object),
                                       style: IconButton.styleFrom(
-                                        backgroundColor: AppTheme.primaryPurple.withOpacity(0.1),
+                                        backgroundColor: AppTheme.primaryPurple.withValues(alpha: 0.1),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
                                         ),

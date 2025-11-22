@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: AppTheme.primaryPurple.withOpacity(0.2)),
+            side: BorderSide(color: AppTheme.primaryPurple.withValues(alpha: 0.2)),
           ),
         ),
       );
@@ -225,8 +225,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppTheme.primaryPurple.withOpacity(0.1),
-                          AppTheme.primaryBlue.withOpacity(0.1),
+                          AppTheme.primaryPurple.withValues(alpha: 0.1),
+                          AppTheme.primaryBlue.withValues(alpha: 0.1),
                         ],
                       ),
                     ),
@@ -271,13 +271,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               shape: BoxShape.circle,
                               gradient: RadialGradient(
                                 colors: [
-                                  AppTheme.primaryPurple.withOpacity(0.3),
+                                  AppTheme.primaryPurple.withValues(alpha: 0.3),
                                   Colors.transparent,
                                 ],
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.primaryPurple.withOpacity(0.3),
+                                  color: AppTheme.primaryPurple.withValues(alpha: 0.3),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -335,10 +335,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.successGreen.withOpacity(0.1),
+                          color: AppTheme.successGreen.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.successGreen.withOpacity(0.3),
+                            color: AppTheme.successGreen.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -458,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.textSecondary.withOpacity(0.1),
+                                  color: AppTheme.textSecondary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -560,7 +560,7 @@ class ShimmerPainter extends CustomPainter {
         end: Alignment.bottomRight,
         colors: [
           Colors.transparent,
-          AppTheme.primaryPurple.withOpacity(0.1),
+          AppTheme.primaryPurple.withValues(alpha: 0.1),
           Colors.transparent,
         ],
         stops: [
@@ -595,7 +595,7 @@ class CirclesPainter extends CustomPainter {
       final radius = 50.0 + (i * 30);
       final opacity = 0.15 - (i * 0.03);
       
-      paint.color = AppTheme.primaryBlue.withOpacity(opacity);
+      paint.color = AppTheme.primaryBlue.withValues(alpha: opacity);
       
       canvas.save();
       canvas.translate(center.dx, center.dy);

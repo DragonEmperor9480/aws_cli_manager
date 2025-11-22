@@ -54,7 +54,7 @@ class _LoadingAnimationState extends State<LoadingAnimation>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.orange.withOpacity(0.3),
+                          color: Colors.orange.withValues(alpha: 0.3),
                           width: 3,
                         ),
                       ),
@@ -75,7 +75,7 @@ class _LoadingAnimationState extends State<LoadingAnimation>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.blue.withOpacity(0.3),
+                          color: Colors.blue.withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -161,7 +161,7 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             child: LoadingAnimation(message: message),
           ),
       ],

@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../services/aws_credentials_service.dart';
 import '../services/email_config_service.dart';
-import '../services/backend_service.dart';
 import '../services/api_service.dart';
 import 'credentials_setup_screen.dart';
 import 'about_screen.dart';
@@ -692,13 +689,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryPurple.withOpacity(0.1),
-              AppTheme.primaryBlue.withOpacity(0.1),
+              AppTheme.primaryPurple.withValues(alpha: 0.1),
+              AppTheme.primaryBlue.withValues(alpha: 0.1),
             ],
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppTheme.primaryPurple.withOpacity(0.3),
+            color: AppTheme.primaryPurple.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
@@ -720,7 +717,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryPurple.withOpacity(0.3),
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.3),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),

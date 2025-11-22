@@ -98,7 +98,7 @@ class ParticlePainter extends CustomPainter {
       particle.update();
 
       final paint = Paint()
-        ..color = particle.color.withOpacity(0.3)
+        ..color = particle.color.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill;
 
       final position = Offset(

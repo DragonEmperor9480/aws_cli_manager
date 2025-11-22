@@ -48,7 +48,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
               colors: [
                 Colors.grey.shade900,
                 Colors.black,
-                Colors.blue.shade900.withOpacity(0.3),
+                Colors.blue.shade900.withValues(alpha: 0.3),
               ],
             ),
           ),
@@ -127,7 +127,7 @@ class ParticlePainter extends CustomPainter {
       particle.update();
 
       final paint = Paint()
-        ..color = particle.color.withOpacity(0.6)
+        ..color = particle.color.withValues(alpha: 0.6)
         ..style = PaintingStyle.fill;
 
       final position = Offset(
@@ -147,7 +147,7 @@ class ParticlePainter extends CustomPainter {
         final distance = (position - otherPos).distance;
         if (distance < 150) {
           final linePaint = Paint()
-            ..color = particle.color.withOpacity(0.1 * (1 - distance / 150))
+            ..color = particle.color.withValues(alpha: 0.1 * (1 - distance / 150))
             ..strokeWidth = 0.5;
 
           canvas.drawLine(position, otherPos, linePaint);
@@ -164,7 +164,7 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.cyan.withOpacity(0.05)
+      ..color = Colors.cyan.withValues(alpha: 0.05)
       ..strokeWidth = 1;
 
     const spacing = 50.0;
